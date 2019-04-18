@@ -18,25 +18,25 @@ gMostRecentTemp = None
 gWirelessTagUUID = None
 
 def toFahrenheit(val):
-   return 1.8*val + 32
+    return 1.8*val + 32
 
 def tagApi():
     return WirelessTags(username="kylej@mac.com", password="wirelesstaghomu")
 
 def initializeSmartPlug():
-   global gSmartPlug
-   gSmartPlug = None
-   print ("Searching for valid plug...")
-   try:
-      for (ip, plug) in Discover.discover().items():
-         if plug_name == plug.sys_info["alias"]:
-            print ("Found plug", plug_name, "at address", ip)
-            gSmartPlug = plug
-            return True
-   except Exception as error:
-      print ("Failed to initialize due to exception:", error)
-   print ("ERROR: Could not find any plug named", plug_name)
-   return False
+    global gSmartPlug
+    gSmartPlug = None
+    print ("Searching for valid plug...")
+    try:
+        for (ip, plug) in Discover.discover().items():
+            if plug_name == plug.sys_info["alias"]:
+                print ("Found plug", plug_name, "at address", ip)
+                gSmartPlug = plug
+                return True
+    except Exception as error:
+        print ("Failed to initialize due to exception:", error)
+    print ("ERROR: Could not find any plug named", plug_name)
+    return False
 
 def initializeWirelessTag():
     global gMostRecentTemp, gWirelessTagUUID
@@ -64,59 +64,59 @@ def updateTemp():
         print ("Updated temperature to", gMostRecentTemp)
         return True
     except Exception as error:
-       print ("Failed to update temperature due to exception:", error)
+        print ("Failed to update temperature due to exception:", error)
     return False
 
 def getCurrentTemp():
-   return gMostRecentTemp
+    return gMostRecentTemp
 
 def getTargetTemp():
-   return gTargetTemp
+    return gTargetTemp
 
 def setTargetTemp(val):
-   global gTargetTemp
-   if gTargetTemp == val:
-       return
-   gThermostatUpdateSignal.acquire()
-   print ("Updating new target temp from", gTargetTemp, "to", val)
-   gTargetTemp = val
-   updateStatus()
+    global gTargetTemp
+    if gTargetTemp == val:
+        return
+    gThermostatUpdateSignal.acquire()
+    print ("Updating new target temp from", gTargetTemp, "to", val)
+    gTargetTemp = val
+    updateStatus()
 
 def getStatus():
-   if gSmartPlug == None:
-      return -2
-   try:
-      cur_state = gSmartPlug.state
-      if cur_state == "ON":
-         return 1
-      if cur_state == "OFF":
-         return 0
-   except Exception as error:
-      print ("Plug state gave error <", error, "> attempting to re-discover...")
-      if (initializeSmartPlug()):
-         print ("Successful, retrying state read")
-         return getStatus()
-      print ("Failed, returning error")
-      return -3
-   return -1
+    if gSmartPlug == None:
+        return -2
+    try:
+        cur_state = gSmartPlug.state
+        if cur_state == "ON":
+            return 1
+        if cur_state == "OFF":
+            return 0
+    except Exception as error:
+        print ("Plug state gave error <", error, "> attempting to re-discover...")
+        if (initializeSmartPlug()):
+            print ("Successful, retrying state read")
+            return getStatus()
+        print ("Failed, returning error")
+        return -3
+    return -1
 
 def setStatus(val):
-   try:
-      if val:
-         if getStatus() != 1:
-            print ("Turning heater on")
-            gSmartPlug.turn_on()
-      else:
-         if getStatus() != 0:
-            print ("Turning heater off")
-            gSmartPlug.turn_off()
-   except:
-      print ("Plug state gave error, attempting to re-discover...")
-      if (initializeSmartPlug()):
-         print ("Successful, retrying state read")
-         setStatus(val)
-      else:
-         print ("Failed, ignoring set state command")
+    try:
+        if val:
+            if getStatus() != 1:
+                print ("Turning heater on")
+                gSmartPlug.turn_on()
+        else:
+            if getStatus() != 0:
+                print ("Turning heater off")
+                gSmartPlug.turn_off()
+    except:
+        print ("Plug state gave error, attempting to re-discover...")
+        if (initializeSmartPlug()):
+            print ("Successful, retrying state read")
+            setStatus(val)
+        else:
+            print ("Failed, ignoring set state command")
 
 def updateStatus():
     if getEnabled() == 2 or (getEnabled() == 1 and getCurrentTemp() != None and getCurrentTemp() < getTargetTemp()):
@@ -125,25 +125,25 @@ def updateStatus():
         setStatus(0)
 
 def getEnabled():
-   return gToggle
+    return gToggle
 
 def setEnabled(val):
-   global gToggle
-   gThermostatUpdateSignal.acquire()
-   val = min(max(int(val),0),2)
-   gToggle = val
-   updateStatus()
+    global gToggle
+    gThermostatUpdateSignal.acquire()
+    val = min(max(int(val),0),2)
+    gToggle = val
+    updateStatus()
 
 def thermostatThread(update_signal):
-   global gSmartPlugStatus
-   update_signal.acquire()
-   while True:
-      print ("Checking thermostat...")
-      updateTemp()
-      updateStatus()
+    global gSmartPlugStatus
+    update_signal.acquire()
+    while True:
+        print ("Checking thermostat...")
+        updateTemp()
+        updateStatus()
 
-      update_signal.notify()
-      update_signal.wait(60)
+        update_signal.notify()
+        update_signal.wait(60)
 
 def initializeThermostat():
     if not initializeSmartPlug():
@@ -167,7 +167,8 @@ def flaskThermostat():
         "targetTemp" : getTargetTemp(),
         "enabled" : ("Off", "On", "Force On")[getEnabled()],
         "status" : "Running" if getStatus() else ("Standby" if getEnabled() == 1 else "Disabled"),
-        }
+    }
+
     return render_template("main.html", **templateData)
 
 @app.route("/thermostat", methods=["POST"])
