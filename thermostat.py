@@ -61,7 +61,6 @@ def setTargetTemp(val):
     global gTargetTemp
     if gTargetTemp == val:
         return
-    gThermostatUpdateSignal.acquire()
     print ("Updating new target temp from", gTargetTemp, "to", val)
     gTargetTemp = val
     updateStatus()
@@ -113,7 +112,6 @@ def getEnabled():
 
 def setEnabled(val):
     global gToggle
-    gThermostatUpdateSignal.acquire()
     val = min(max(int(val),0),2)
     gToggle = val
     updateStatus()
