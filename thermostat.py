@@ -15,13 +15,9 @@ gTargetTemp = 70
 gToggle = 1
 gSmartPlug = None
 gMostRecentTemp = None
-gWirelessTagUUID = None
 
 def toFahrenheit(val):
     return 1.8*val + 32
-
-def tagApi():
-    return WirelessTags(username="kylej@mac.com", password="wirelesstaghomu")
 
 def initializeSmartPlug():
     global gSmartPlug
@@ -38,33 +34,21 @@ def initializeSmartPlug():
     print ("ERROR: Could not find any plug named", plug_name)
     return False
 
-def initializeWirelessTag():
-    global gMostRecentTemp, gWirelessTagUUID
-    try:
-        print ("Searching for valid tag...")
-        api = tagApi()
-        for (uuid, tag) in api.load_tags().items():
-            if tag.name == tag_name:
-                print ("Found tag", tag.name, "with uuid", uuid)
-                gMostRecentTemp = toFahrenheit(tag.sensor['temperature'].value)
-                gWirelessTagUUID = uuid
-                print ("Updated temperature to", gMostRecentTemp)
-                return True
-    except Exception as error:
-        print ("Failed to initialize tag due to exception:", error)
-        return False
-    print ("ERROR: Could not find tag named", tag_name)
-    return False
-
 def updateTemp():
     global gMostRecentTemp
     try:
-        api = tagApi()
-        gMostRecentTemp = toFahrenheit(api.load_tags()[gWirelessTagUUID].sensor['temperature'].value)
-        print ("Updated temperature to", gMostRecentTemp)
-        return True
+        #print ("Searching for valid tag...")
+        api = WirelessTags(username="kylej@mac.com", password="wirelesstaghomu")
+        for (uuid, tag) in api.load_tags().items():
+            if tag.name == tag_name:
+                #print ("Found tag", tag.name, "with uuid", uuid)
+                gMostRecentTemp = toFahrenheit(tag.sensor['temperature'].value)
+                print ("Updated temperature to", gMostRecentTemp)
+                return True
     except Exception as error:
         print ("Failed to update temperature due to exception:", error)
+        return False
+    print ("Failed to find tag named", tag_name)
     return False
 
 def getCurrentTemp():
@@ -142,15 +126,11 @@ def thermostatThread(update_signal):
         updateTemp()
         updateStatus()
 
-        update_signal.notify()
         update_signal.wait(60)
 
 def initializeThermostat():
     if not initializeSmartPlug():
         print ("Initializing smart plug failed")
-        return False
-    if not initializeWirelessTag():
-        print ("Initializing tag failed")
         return False
 
     # Setup thermostat loop
@@ -205,3 +185,4 @@ if __name__ == "__main__":
         exit()
 
     app.run(host='0.0.0.0', port=80)
+
