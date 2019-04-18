@@ -1,8 +1,9 @@
 from flask import Flask, render_template, request, redirect, url_for
 from pyHS100 import SmartPlug, Discover
-from wirelesstagpy import WirelessTags
+from wirelesstagpy import WirelessTags, NotificationConfig
 
 import threading
+import socket
 
 plug_name = "Heater"
 tag_name = "Thermostat"
@@ -15,7 +16,8 @@ gTargetTemp = 70
 gToggle = 1
 gSmartPlug = None
 gMostRecentTemp = None
-gWirelessTag = None
+gWirelessTagApi = None
+gWirelessTagUUID = None
 
 def toFahrenheit(val):
    return 1.8*val + 32
@@ -36,7 +38,7 @@ def initializeSmartPlug():
    return False
 
 def updateTemp():
-   global gMostRecentTemp
+   global gMostRecentTemp, gWirelessTagApi, gWirelessTagUUID
    #print ("Searching for valid tag...")
    try:
       api = WirelessTags(username='kylej@mac.com', password='wirelesstaghomu')
@@ -50,6 +52,41 @@ def updateTemp():
       print ("Failed to update temperature due to exception:", error)
    print ("ERROR: Could not update temperature of tag named", tag_name)
    return False
+
+def setupTagPushEvents():
+    global gMostRecentTemp, gWirelessTagApi, gWirelessTagUUID
+    print ("Searching for valid tag...")
+    try:
+        api = WirelessTags(username='kylej@mac.com', password='wirelesstaghomu')
+        gWirelessTagApi = api
+        gWirelessTagUUID = None
+        for (uuid, tag) in api.load_tags().items():
+            if tag.name == tag_name:
+                print ("Found tag", tag.name, "with uuid", uuid)
+                gMostRecentTemp = toFahrenheit(tag.sensor['temperature'].value)
+                gWirelessTagUUID = uuid
+                print ("Updated temperature to", gMostRecentTemp)
+        if gWirelessTagUUID == None:
+            print ("Could not find tag with name", tag_name)
+            return false
+
+        notifications = [
+            NotificationConfig('update', {
+                'url' : socket.gethostname() + "/updatetemp",
+                'verb' : 'POST',
+                'disabled' : False,
+                'nat' : False
+            })
+        ]
+        if not api.install_push_notification(gWirelessTagUUID, notifications, False):
+            print ("Could not setup push notifcation")
+            return False
+        return True
+    except Exception as error:
+        print ("Failed to update temperature due to exception:", error)
+    print ("ERROR: Could not update temperature of tag named", tag_name)
+    return False
+    
 
 def getCurrentTemp():
    return gMostRecentTemp
@@ -121,11 +158,9 @@ def setEnabled(val, block=True):
 def thermostatThread(update_signal):
    global gSmartPlugStatus
    update_signal.acquire()
-   if not initializeSmartPlug():
-      print ("Initializing smart plug failed")
    while True:
-      print ("Checking thermostat...")
-      updateTemp()
+      #print ("Checking thermostat...")
+      #updateTemp()
       if getEnabled() == 2 or (getEnabled() == 1 and getCurrentTemp() != None and getCurrentTemp() < getTargetTemp()):
          setStatus(1)
       elif getEnabled() == 0 or (getEnabled() == 1 and getCurrentTemp() != None and getCurrentTemp() >= getTargetTemp()):
@@ -134,13 +169,29 @@ def thermostatThread(update_signal):
       update_signal.notify()
       update_signal.wait(60)
 
-# Setup thermostat loop
-timerThread = threading.Thread(target=thermostatThread, args=[gThermostatUpdateSignal])
-timerThread.daemon = True
-timerThread.start()
+
+def initializeThermostat():
+    if not initializeSmartPlug():
+        print ("Initializing smart plug failed")
+        return False
+    if not setupTagPushEvents():
+        print ("Initializing tag failed")
+        return False
+
+    # Setup thermostat loop
+    timerThread = threading.Thread(target=thermostatThread, args=[gThermostatUpdateSignal])
+    timerThread.daemon = True
+    timerThread.start()
+
+    return True
+
+
+@app.route("/updatetemp", methods=["POST"])
+def updateTempTag():
+    print (request.form)
 
 @app.route("/thermostat", methods=["GET"])
-def main():
+def flaskThermostat():
     templateData = {
         "currentTemp" : round(getCurrentTemp(), 2),
         "targetTemp" : getTargetTemp(),
@@ -150,7 +201,7 @@ def main():
     return render_template("main.html", **templateData)
 
 @app.route("/thermostat", methods=["POST"])
-def update():
+def flaskThermostatUpdate():
     new_temp = None
     try:
         new_temp = float(request.form["temp"])
@@ -174,4 +225,7 @@ def update():
     return redirect("/thermostat")
 
 if __name__ == "__main__":
+    if not initializeThermostat():
+        exit()
+
     app.run(host='0.0.0.0', port=80)
