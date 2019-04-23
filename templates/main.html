@@ -7,7 +7,7 @@
         Status: {{ enabled }} <br>
         Current Temperature: {{ currentTemp }} <br>
         Target Temperature: {{ targetTemp }} <br>
-        State: {{ status }} <br>
+        Current On Value: {{ status }}% <br>
         <br>
         <form method="post">
             <input type="text" name="temp" value="{{ targetTemp }}">
@@ -18,6 +18,14 @@
             <input type="submit" name="disable" value="Disable" />
             <input type="submit" name="enable" value="Enable" />
             <input type="submit" name="force_on" value="Force On" />
+        </form>
+        <br>
+	PID Tunings: <br>
+        <form method="post">
+            <input type="text" name="Kp" value="{{ Kp }}">
+            <input type="text" name="Ki" value="{{ Ki }}">
+            <input type="text" name="Kd" value="{{ Kd }}">
+            <input type="submit" name="edit_tunings" value="Update">
         </form>
     </body>
 </html>

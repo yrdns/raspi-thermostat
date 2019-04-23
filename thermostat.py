@@ -1,8 +1,10 @@
 from flask import Flask, render_template, request, redirect
 from pyHS100 import SmartPlug, Discover
 from wirelesstagpy import WirelessTags
+from simple_pid import PID
 
 import threading
+import time
 
 plug_name = "Heater"
 tag_name = "Thermostat"
@@ -11,10 +13,12 @@ app = Flask(__name__)
 
 gThermostatUpdateSignal = threading.Condition()
 
-gTargetTemp = 70
 gToggle = 1
 gSmartPlug = None
 gMostRecentTemp = None
+gMostRecentStatus = 0.0
+gPid = PID(1.0, .1, .1, setpoint=70, output_limits=(0.0, 1.0))
+gStatusChanged = False
 
 def toFahrenheit(val):
     return 1.8*val + 32
@@ -55,33 +59,34 @@ def getCurrentTemp():
     return gMostRecentTemp
 
 def getTargetTemp():
-    return gTargetTemp
+    return gPid.setpoint
 
 def setTargetTemp(val):
-    global gTargetTemp
-    if gTargetTemp == val:
+    if gPid.setpoint == val:
         return
-    print ("Updating new target temp from", gTargetTemp, "to", val)
-    gTargetTemp = val
+    print ("Updating new target temp from", gPid.setpoint, "to", val)
+    gPid.setpoint = val
     updateStatus()
 
+#def getStatus():
+#    if gSmartPlug == None:
+#        return -2
+#    try:
+#        cur_state = gSmartPlug.state
+#        if cur_state == "ON":
+#            return 1
+#        if cur_state == "OFF":
+#            return 0
+#    except Exception as error:
+#        print ("Plug state gave error <", error, "> attempting to re-discover...")
+#        if (initializeSmartPlug()):
+#            print ("Successful, retrying state read")
+#            return getStatus()
+#        print ("Failed, returning error")
+#        return -3
+#    return -1
 def getStatus():
-    if gSmartPlug == None:
-        return -2
-    try:
-        cur_state = gSmartPlug.state
-        if cur_state == "ON":
-            return 1
-        if cur_state == "OFF":
-            return 0
-    except Exception as error:
-        print ("Plug state gave error <", error, "> attempting to re-discover...")
-        if (initializeSmartPlug()):
-            print ("Successful, retrying state read")
-            return getStatus()
-        print ("Failed, returning error")
-        return -3
-    return -1
+    return gMostRecentStatus
 
 def setStatus(val):
     try:
@@ -101,11 +106,14 @@ def setStatus(val):
         else:
             print ("Failed, ignoring set state command")
 
+#def updateStatus():
+#    if getEnabled() == 2 or (getEnabled() == 1 and getCurrentTemp() != None and getCurrentTemp() < getTargetTemp()):
+#        setStatus(1)
+#    elif getEnabled() == 0 or (getEnabled() == 1 and getCurrentTemp() != None and getCurrentTemp() >= getTargetTemp()):
+#        setStatus(0)
 def updateStatus():
-    if getEnabled() == 2 or (getEnabled() == 1 and getCurrentTemp() != None and getCurrentTemp() < getTargetTemp()):
-        setStatus(1)
-    elif getEnabled() == 0 or (getEnabled() == 1 and getCurrentTemp() != None and getCurrentTemp() >= getTargetTemp()):
-        setStatus(0)
+    gStatusChanged = True
+    gThermostatUpdateSignal.notify()
 
 def getEnabled():
     return gToggle
@@ -116,15 +124,38 @@ def setEnabled(val):
     gToggle = val
     updateStatus()
 
+def getTunings():
+    return gPid.tunings
+
+def setTunings(Kp, Ki, Kd):
+    gPid.tunings = (Kp, Ki, Kd)
+
 def thermostatThread(update_signal):
-    global gSmartPlugStatus
+    global gMostRecentStatus
+    pid = PID(1.0, 0.0, 0.5, setpoint=getTargetTemp(), output_limits=(0.0, 1.0))
     update_signal.acquire()
+    fixed_time = time.time()
     while True:
+        if not gStatusChanged:
+            fixed_time += 60.0
         print ("Checking thermostat...")
         updateTemp()
-        updateStatus()
+        #updateStatus()
+        cur_status = pid(getCurrentTemp())
+        gMostRecentStatus = cur_status
 
-        update_signal.wait(60)
+        if cur_status > 0:
+            setStatus(1)
+            start_run = time.time()
+            update_signal.wait(min(cur_status*60.0, fixed_time-time.time()))
+            print ("Target run length:", cur_status*60.0, "Actual run length:", time.time() - start_run)
+
+        cur_time = time.time()
+        if fixed_time > cur_time:
+            setStatus(0)
+        while fixed_time > cur_time and not gStatusChanged:
+            update_signal.wait(fixed_time - cur_time)
+            cur_time = time.time()
 
 def initializeThermostat():
     if not initializeSmartPlug():
@@ -140,11 +171,13 @@ def initializeThermostat():
 
 @app.route("/thermostat", methods=["GET"])
 def flaskThermostat():
+    (Kp, Ki, Kd) = getTunings()
     templateData = {
         "currentTemp" : round(getCurrentTemp(), 2),
         "targetTemp" : getTargetTemp(),
         "enabled" : ("Off", "On", "Force On")[getEnabled()],
-        "status" : "Running" if getStatus() else ("Standby" if getEnabled() == 1 else "Disabled"),
+        "status" : round(100*getStatus(), 2),
+        "Kp" : Kp, "Ki" : Ki, "Kd" : Kd,
     }
 
     return render_template("main.html", **templateData)
@@ -173,7 +206,22 @@ def flaskThermostatUpdate():
     if "force_on" in request.form:
         setEnabled(2)
 
+    (Kp, Ki, Kd) = getTunings()
+    try:
+        Kp = float(request.form(Kp))
+    except:
+        pass
+    try:
+        Ki = float(request.form(Ki))
+    except:
+        pass
+    try:
+        Kd = float(request.form(Kd))
+    except:
+        pass
+
     setTargetTemp(new_temp)
+    setTunings(Kp, Ki, Kd)
     gThermostatUpdateSignal.release()
 
     return redirect("/thermostat")
