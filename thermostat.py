@@ -182,5 +182,9 @@ if __name__ == "__main__":
     if not initializeThermostat():
         exit()
 
+    @app.route("/")
+    def redirectToThermostat():
+        return redirect("/thermostat")
+
     app.run(host='0.0.0.0', port=80)
 
