@@ -88,21 +88,19 @@ def setTargetTemp(val):
 def getStatus():
     return gMostRecentStatus
 
-def setStatus(val):
+def setHeaterState(val):
     try:
         if val:
-            if getStatus() != 1:
-                print ("Turning heater on")
-                gSmartPlug.turn_on()
+            print ("Turning heater on")
+            gSmartPlug.turn_on()
         else:
-            if getStatus() != 0:
-                print ("Turning heater off")
-                gSmartPlug.turn_off()
+            print ("Turning heater off")
+            gSmartPlug.turn_off()
     except:
         print ("Plug state gave error, attempting to re-discover...")
         if (initializeSmartPlug()):
             print ("Successful, retrying state read")
-            setStatus(val)
+            setHeaterState(val)
         else:
             print ("Failed, ignoring set state command")
 
@@ -131,8 +129,7 @@ def setTunings(Kp, Ki, Kd):
     gPid.tunings = (Kp, Ki, Kd)
 
 def thermostatThread(update_signal):
-    global gMostRecentStatus
-    pid = PID(1.0, 0.0, 0.5, setpoint=getTargetTemp(), output_limits=(0.0, 1.0))
+    global gPid, gMostRecentStatus
     update_signal.acquire()
     fixed_time = time.time()
     while True:
@@ -141,18 +138,19 @@ def thermostatThread(update_signal):
         print ("Checking thermostat...")
         updateTemp()
         #updateStatus()
-        cur_status = pid(getCurrentTemp())
+        cur_status = gPid(getCurrentTemp())
         gMostRecentStatus = cur_status
 
         if cur_status > 0:
-            setStatus(1)
+            print ("Running at ", cur_status)
+            setHeaterState(1)
             start_run = time.time()
             update_signal.wait(min(cur_status*60.0, fixed_time-time.time()))
             print ("Target run length:", cur_status*60.0, "Actual run length:", time.time() - start_run)
 
         cur_time = time.time()
         if fixed_time > cur_time:
-            setStatus(0)
+            setHeaterState(0)
         while fixed_time > cur_time and not gStatusChanged:
             update_signal.wait(fixed_time - cur_time)
             cur_time = time.time()
@@ -187,10 +185,11 @@ def flaskThermostatUpdate():
     new_temp = None
     try:
         new_temp = float(request.form["temp"])
-    except:
+    except Exception as err:
         pass
 
-    # Get lock just in case
+    # Get lock to avoid concurrency & enable signaling
+    # TODO: Signaling might not be working. Investigate
     gThermostatUpdateSignal.acquire()
 
     if new_temp == None:
@@ -208,16 +207,16 @@ def flaskThermostatUpdate():
 
     (Kp, Ki, Kd) = getTunings()
     try:
-        Kp = float(request.form(Kp))
-    except:
+        Kp = float(request.form["Kp"])
+    except Exception as err:
         pass
     try:
-        Ki = float(request.form(Ki))
-    except:
+        Ki = float(request.form["Ki"])
+    except Exception as err:
         pass
     try:
-        Kd = float(request.form(Kd))
-    except:
+        Kd = float(request.form["Kd"])
+    except Exception as err:
         pass
 
     setTargetTemp(new_temp)
