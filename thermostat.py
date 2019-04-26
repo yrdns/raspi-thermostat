@@ -17,7 +17,7 @@ gToggle = 1
 gSmartPlug = None
 gMostRecentTemp = None
 gMostRecentStatus = 0.0
-gPid = PID(1.0, .1, .1, setpoint=70, output_limits=(0.0, 1.0))
+gPid = PID(0.5, 0.0, 0.2, setpoint=70, output_limits=(0.0, 1.0))
 gStatusChanged = False
 
 def toFahrenheit(val):
@@ -142,7 +142,12 @@ def thermostatThread(update_signal):
         print ("Checking thermostat...")
         updateTemp()
         #updateStatus()
-        cur_status = gPid(getCurrentTemp())
+        cur_status = 0
+        if (getEnabled() == 2):
+            cur_status = 1
+        elif (getEnabled() == 1):
+            cur_status = gPid(getCurrentTemp())
+
         gMostRecentStatus = cur_status
         #update_signal.notify()
 
