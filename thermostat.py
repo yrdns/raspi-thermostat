@@ -110,8 +110,10 @@ def setHeaterState(val):
 #    elif getEnabled() == 0 or (getEnabled() == 1 and getCurrentTemp() != None and getCurrentTemp() >= getTargetTemp()):
 #        setStatus(0)
 def updateStatus():
+    global gStatusChanged
     gStatusChanged = True
     gThermostatUpdateSignal.notify()
+    #gThermostatUpdateSignal.wait()
 
 def getEnabled():
     return gToggle
@@ -129,31 +131,42 @@ def setTunings(Kp, Ki, Kd):
     gPid.tunings = (Kp, Ki, Kd)
 
 def thermostatThread(update_signal):
-    global gPid, gMostRecentStatus
+    global gPid, gMostRecentStatus, gStatusChanged
     update_signal.acquire()
-    fixed_time = time.time()
+    next_check_time = time.time()
     while True:
         if not gStatusChanged:
-            fixed_time += 60.0
+            next_check_time += 60.0
+        gStatusChanged = False
+
         print ("Checking thermostat...")
         updateTemp()
         #updateStatus()
         cur_status = gPid(getCurrentTemp())
         gMostRecentStatus = cur_status
-
-        if cur_status > 0:
-            print ("Running at ", cur_status)
-            setHeaterState(1)
-            start_run = time.time()
-            update_signal.wait(min(cur_status*60.0, fixed_time-time.time()))
-            print ("Target run length:", cur_status*60.0, "Actual run length:", time.time() - start_run)
+        #update_signal.notify()
 
         cur_time = time.time()
-        if fixed_time > cur_time:
-            setHeaterState(0)
-        while fixed_time > cur_time and not gStatusChanged:
-            update_signal.wait(fixed_time - cur_time)
+        run_end_time = cur_time + cur_status*60.0
+        if run_end_time > cur_time:
+            print ("Running at ", cur_status)
+            setHeaterState(1)
+
             cur_time = time.time()
+            start_run = cur_time
+
+            while run_end_time > cur_time and not gStatusChanged:
+                update_signal.wait(min(run_end_time, next_check_time) - cur_time)
+                cur_time = time.time()
+            print ("Target run length:", cur_status*60.0, "Actual run length:", cur_time - start_run)
+
+        if next_check_time > cur_time and not gStatusChanged:
+            setHeaterState(0)
+            cur_time = time.time()
+
+            while next_check_time > cur_time and not gStatusChanged:
+                update_signal.wait(next_check_time - cur_time)
+                cur_time = time.time()
 
 def initializeThermostat():
     if not initializeSmartPlug():
