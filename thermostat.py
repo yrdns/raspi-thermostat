@@ -1,4 +1,4 @@
-from tempSensor import tempSensor
+from tempSensorDHT import tempSensor
 from heaterControl import heaterControl
 from simple_pid import PID
 
