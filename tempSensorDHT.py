@@ -17,7 +17,8 @@ class tempSensor:
         except:
             return self.most_recent_temp
 
-        temp = toFahrenheit(temp)
-        self.most_recent_temp = temp
+        if(temp != None):
+            temp = toFahrenheit(temp)
+            self.most_recent_temp = temp
         return temp
 
