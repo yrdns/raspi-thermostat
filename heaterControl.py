@@ -21,8 +21,9 @@ class heaterControl():
         self.lock.acquire()
         self.to_delete = True
         self.lock.notify()
-        self.lock.release()
+        self.lock.wait()
         self.thead.join()
+        self.lock.release()
 
     def initializeSmartPlug(self):
         self.smart_plug = None
@@ -64,6 +65,7 @@ class heaterControl():
                 period_pos = (time.time() - start_time) % self.period
                 if period_pos > period_threshold:
                     self.lock.wait(self.period - period_pos)
+        self.lock.notify()
         self.lock.release()
 
     def setState(self, val):
