@@ -18,9 +18,10 @@ class heaterControl():
     def __del__(self):
         self.lock.acquire()
         self.to_delete = True
-        self.lock.notify()
-        self.lock.wait()
-        self.thead.join()
+        while self.thread.is_alive():
+            self.lock.notify()
+            self.lock.wait()
+            self.thead.join(0)
         self.lock.release()
 
     def setLevel(self, val):

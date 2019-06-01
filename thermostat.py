@@ -22,9 +22,11 @@ class Thermostat:
     def __del__(self):
         self.lock.acquire()
         self.to_delete = True
-        self.lock.notify()
+        while self.thread.is_alive():
+            self.lock.notify()
+            self.lock.wait()
+            self.thread.join(0)
         self.lock.release()
-        self.thread.join()
 
     def getTargetTemp(self):
         return self.pid.setpoint
@@ -74,6 +76,7 @@ class Thermostat:
             cur_time = time.time()
             if cur_time < next_check_time:
                 self.lock.wait(next_check_time - cur_time)
+        self.lock.notify()
         self.lock.release()
 
     def updateState(self):
