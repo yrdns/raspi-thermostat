@@ -1,5 +1,6 @@
 from tempSensorDHT import tempSensor
 from heaterControl import heaterControl
+from schedule import schedule
 from simple_pid import PID
 
 import threading
@@ -11,6 +12,7 @@ class Thermostat:
         self.toggle = 1
         self.sensor = tempSensor()
         self.control = heaterControl()
+        self.schedule = schedule()
         self.pid = PID(0.5, 0.0, 0.2, setpoint=70, output_limits=(0.0, 1.0))
         self.state_changed = False
         self.to_delete = False
@@ -65,6 +67,10 @@ class Thermostat:
                 self.sensor.updateTemp()
                 next_check_time += 60.0
             self.state_changed = False
+
+            scheduled_temp = self.schedule.checkForUpdate()
+            if scheduled_temp != None:
+                self.setTargetTemp(scheduled_temp)
 
             status = 0
             if (self.toggle == 2):
