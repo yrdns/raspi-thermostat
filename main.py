@@ -8,15 +8,19 @@ thermostat = Thermostat()
 
 dayNames = ("Every Day", "Sunday", "Monday", "Tuesday",
             "Wednesday", "Thursday", "Friday", "Saturday")
-deleteTimeRE = re.compile("deleteTime("+"|".join(dayNames)+")([0-9]+):([0-9]+) *(AM|PM)")
+deleteTimeRE = re.compile("deleteTime([0-7])([0-2][0-9])([0-5][0-9])")
 
 @app.route("/thermostat", methods=["GET"])
 def flaskThermostat():
     (Kp, Ki, Kd) = thermostat.getTunings()
-    scheduleVals = ([("%02d:%02d %sM" %
-                        ((h+11)%12 + 1,m,"A" if h<12 else "P"), t)
-                      for (h,m,t) in l]
-                    for l in thermostat.schedule.serialize())
+    (scheduleTimes, scheduleRows) = thermostat.schedule.tabled()
+    if not scheduleTimes:
+        scheduleTimes = [(0,0)]
+        scheduleRows = [[None]*8]
+    scheduleTimes = [("%02d:%02d %s" % ((h+11)%12 + 1, m,
+                                          "AM" if h<12 else "PM"),
+                      "%02d%02d" % (h, m))
+                       for (h,m) in scheduleTimes]
     templateData = {
         "currentTemp" : round(thermostat.getCurrentTemp(), 2),
         "targetTemp" : thermostat.getTargetTemp(),
@@ -24,7 +28,8 @@ def flaskThermostat():
         "status" : round(100*thermostat.getStatus(), 2),
         "Kp" : Kp, "Ki" : Ki, "Kd" : Kd,
         "dayNames" : dayNames,
-        "scheduleVals" : scheduleVals,
+        "scheduleTimes" : scheduleTimes,
+        "scheduleRows" : scheduleRows,
     }
 
     return render_template("main.html", **templateData)
@@ -34,12 +39,10 @@ def flaskThermostatUpdate():
     for name in request.form:
         m = deleteTimeRE.fullmatch(name)
         if m:
-            day = dayNames.index(m.group(1))
+            day = int(m.group(1))
             day = None if day == 0 else day-1
-            hour = int(m.group(2))%12
+            hour = int(m.group(2))
             minute = int(m.group(3))
-            if (m.group(4) == "PM"):
-                hour += 12
             thermostat.schedule.deleteEntry(day, hour, minute)
             return redirect("/thermostat")
 

@@ -117,3 +117,9 @@ class schedule:
             l.sort()
         return output
 
+    def tabled(self):
+        times = sorted(set(((t.hour, t.minute) for t in self.values)))
+        rows = [[self.values.get(timeEntry(x,t[0],t[1]), None)
+                 for x in [None] + list(range(7))] for t in times]
+        return (times, rows)
+

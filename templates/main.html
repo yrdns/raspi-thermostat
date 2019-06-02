@@ -16,10 +16,6 @@ input[type=number] {
   display: flex;
 }
 
-.schedule_flex {
-  display: flex;
-}
-
 </style>
 </head>
 
@@ -27,8 +23,8 @@ input[type=number] {
 <div class="main_flex">
     <div>
     Status: {{ enabled }} <br>
-    Current Temperature: {{ currentTemp }} <br>
-    Target Temperature: {{ targetTemp }} <br>
+    Current Temperature: {{ currentTemp }}&deg;F <br>
+    Target Temperature: {{ targetTemp }}&deg;F <br>
     Current On Value: {{ status }}% <br>
     <br>
     <form method="post">
@@ -51,23 +47,27 @@ input[type=number] {
     </form>
 </div>
 <div>
-    <div class="schedule_flex">
-    {%- for vals in scheduleVals -%}
-    {%- set day = dayNames[loop.index0] -%}
-    <div>
-        {{ day }}
-        <table>
-        <tr><td>12:00AM</td><td>--</td><td>-</td></tr>
-        {%- for time, temp in vals -%}
-            <tr><td>{{ time }}</td>
-            <td>{{ temp }}</td>
-            <td><form method="post"><input type="submit" name="deleteTime{{ day }}{{ time }}" value="X"></form></td></tr>
+    <table>
+    <tr>
+        <th>Times</th>
+        {%- for day in dayNames -%}
+        <th>{{ day }}</th>
         {%- endfor -%}
-        <tr><td>11:59PM</td><td>--</td><td>-</td></tr>
-        </table>
-    </div>
+    </tr>
+    {%- for row in scheduleRows -%}
+    {%- set (time, time_id) = scheduleTimes[loop.index0] -%}
+    <tr>
+        <th>{{ time }}</th>
+        {%- for temp in row -%}
+        {%- if temp != None -%}
+        <td><form method="post">{{ temp }}&deg;F <input type="submit" name="deleteTime{{ loop.index0 }}{{ time_id }}" value="X"></form></td>
+        {%- else -%}
+        <td></td>
+        {%- endif -%}
+        {%- endfor -%}
+    </tr>
     {%- endfor -%}
-    </div>
+    </table>
     <form method="post">
         <select name="schedule_day">
         {%- for day in dayNames -%}
