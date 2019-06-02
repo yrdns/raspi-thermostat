@@ -1,31 +1,84 @@
 <!DOCTYPE html>
-    <head>
-        <title>Thermostat</title>
-    </head>
+<head>
+<title>Thermostat</title>
+<style>
 
-    <body onLoad="setTimeout(function() {location.reload();}, 60000);">
-        Status: {{ enabled }} <br>
-        Current Temperature: {{ currentTemp }} <br>
-        Target Temperature: {{ targetTemp }} <br>
-        Current On Value: {{ status }}% <br>
+input::-webkit-outer-spin-button,
+input::-webkit-inner-spin-button {
+    display: none;
+}
+
+input[type=number] {
+    -moz-appearance:textfield;
+}
+
+.main_flex {
+  display: flex;
+}
+
+.schedule_flex {
+  display: flex;
+}
+
+</style>
+</head>
+
+<body onLoad="setTimeout(function() {location.reload();}, 60000);">
+<div class="main_flex">
+    <div>
+    Status: {{ enabled }} <br>
+    Current Temperature: {{ currentTemp }} <br>
+    Target Temperature: {{ targetTemp }} <br>
+    Current On Value: {{ status }}% <br>
+    <br>
+    <form method="post">
+        <input type="number" step="any" name="temp" value="{{ targetTemp }}">
+        <input type="submit" name="edit_temp" value="Update"> <br>
+        <input type="submit" name="decrease_temp" value="Decrease Temp" />
+        <input type="submit" name="increase_temp" value="Increase Temp" />
         <br>
-        <form method="post">
-            <input type="text" name="temp" value="{{ targetTemp }}">
-            <input type="submit" name="edit_temp" value="Update"> <br>
-            <input type="submit" name="decrease_temp" value="Decrease Temp" />
-            <input type="submit" name="increase_temp" value="Increase Temp" />
-            <br>
-            <input type="submit" name="disable" value="Disable" />
-            <input type="submit" name="enable" value="Enable" />
-            <input type="submit" name="force_on" value="Force On" />
-        </form>
-        <br>
+        <input type="submit" name="disable" value="Disable" />
+        <input type="submit" name="enable" value="Enable" />
+        <input type="submit" name="force_on" value="Force On" />
+    </form>
+    <br>
 	PID Tunings: <br>
-        <form method="post">
-            <input type="text" name="Kp" value="{{ Kp }}">
-            <input type="text" name="Ki" value="{{ Ki }}">
-            <input type="text" name="Kd" value="{{ Kd }}">
-            <input type="submit" name="edit_tunings" value="Update">
-        </form>
-    </body>
+    <form method="post">
+        <input type="number" step="any" name="Kp" value="{{ Kp }}">
+        <input type="number" step="any" name="Ki" value="{{ Ki }}">
+        <input type="number" step="any" name="Kd" value="{{ Kd }}">
+        <input type="submit" name="edit_tunings" value="Update">
+    </form>
+</div>
+<div>
+    <div class="schedule_flex">
+    {%- for vals in scheduleVals -%}
+    {%- set day = dayNames[loop.index0] -%}
+    <div>
+        {{ day }}
+        <table>
+        <tr><td>12:00AM</td><td>--</td><td>-</td></tr>
+        {%- for time, temp in vals -%}
+            <tr><td>{{ time }}</td>
+            <td>{{ temp }}</td>
+            <td><form method="post"><input type="submit" name="deleteTime{{ day }}{{ time }}" value="X"></form></td></tr>
+        {%- endfor -%}
+        <tr><td>11:59PM</td><td>--</td><td>-</td></tr>
+        </table>
+    </div>
+    {%- endfor -%}
+    </div>
+    <form method="post">
+        <select name="schedule_day">
+        {%- for day in dayNames -%}
+            <option value="{{ loop.index0 }}">{{ day }}</option>
+        {%- endfor -%}
+        </select>
+        <input type="time" name="schedule_time" min="00:00" max="23:59" value="00:00" required>
+        <input type="number" step="any" name="schedule_temp" value="{{ targetTemp }}">
+        <input type="submit" name="add_time" value="New Entry">
+    </form>
+</div>
+</div>
+</body>
 </html>

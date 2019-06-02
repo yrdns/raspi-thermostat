@@ -76,7 +76,7 @@ class schedule:
             self.cur_schedule_vals.add(newEntry)
         self.values[newEntry] = temp
 
-    def delEntry(self, d, h, m):
+    def deleteEntry(self, d, h, m):
         newEntry = timeEntry(d, h, m)
         if newEntry in self.values:
             self.values.pop(newEntry)
@@ -107,4 +107,13 @@ class schedule:
             new_temp = self.values.get(heappop(self.cur_schedule), new_temp)
 
         return new_temp
+
+    def serialize(self):
+        output = [[] for x in range(8)]
+        for (time, temp) in self.values.items():
+            output[0 if time.day == None else time.day+1].append(
+                (time.hour, time.minute, temp))
+        for l in output:
+            l.sort()
+        return output
 
