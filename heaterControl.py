@@ -46,7 +46,7 @@ class heaterControl():
                 if period_pos < period_threshold:
                     self.lock.wait(period_threshold - period_pos)
             else:
-                self.swith.setState(0)
+                self.switch.setState(0)
                 period_pos = (time.time() - start_time) % self.period
                 if period_pos > period_threshold:
                     self.lock.wait(self.period - period_pos)
