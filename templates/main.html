@@ -59,11 +59,19 @@ input[type=number] {
     <tr>
         <th>{{ time }}</th>
         {%- for temp in row -%}
+        <td align="right">
         {%- if temp != None -%}
-        <td><form method="post">{{ temp }}&deg;F <input type="submit" name="deleteTime{{ loop.index0 }}{{ time_id }}" value="X"></form></td>
+        {%- if temp != "Ignore" -%}
+        <form method="post">{{ temp }}&deg;F <input type="submit" name="deleteTime{{ loop.index0 }}{{ time_id }}" value="X"></form>
         {%- else -%}
-        <td></td>
+        <form method="post">Ignore <input type="submit" name="deleteTime{{ loop.index0 }}{{ time_id }}" value="X"></form>
         {%- endif -%}
+        {%- else -%}
+        {%- if row[0] != None -%}
+        <form method="post"><input type="submit" name="ignoreTime{{ loop.index0 }}{{ time_id }}" value="Ignore"></form>
+        {%- endif -%}
+        {%- endif -%}
+        </td>
         {%- endfor -%}
     </tr>
     {%- endfor -%}

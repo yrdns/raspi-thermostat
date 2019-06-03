@@ -6,9 +6,9 @@ from thermostat import Thermostat
 app = Flask(__name__)
 thermostat = Thermostat()
 
-dayNames = ("Every Day", "Sunday", "Monday", "Tuesday",
-            "Wednesday", "Thursday", "Friday", "Saturday")
-deleteTimeRE = re.compile("deleteTime([0-7])([0-2][0-9])([0-5][0-9])")
+dayNames = ("Every Day", "Monday", "Tuesday", "Wednesday",
+            "Thursday", "Friday", "Saturday", "Sunday")
+timeCommandRE = re.compile("(deleteTime|ignoreTime)([0-7])([0-2][0-9])([0-5][0-9])")
 
 @app.route("/thermostat", methods=["GET"])
 def flaskThermostat():
@@ -37,13 +37,17 @@ def flaskThermostat():
 @app.route("/thermostat", methods=["POST"])
 def flaskThermostatUpdate():
     for name in request.form:
-        m = deleteTimeRE.fullmatch(name)
+        m = timeCommandRE.fullmatch(name)
         if m:
-            day = int(m.group(1))
+            day = int(m.group(2))
             day = None if day == 0 else day-1
-            hour = int(m.group(2))
-            minute = int(m.group(3))
-            thermostat.schedule.deleteEntry(day, hour, minute)
+            hour = int(m.group(3))
+            minute = int(m.group(4))
+            if m.group(1) == "ignoreTime":
+                thermostat.schedule.addEntry(day, hour, minute, None)
+            else:
+                thermostat.schedule.deleteEntry(day, hour, minute)
+
             return redirect("/thermostat")
 
     if "add_time" in request.form:

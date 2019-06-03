@@ -84,6 +84,17 @@ class schedule:
             # time. Use defaults on dictionnary lookups to avoid ValueErrors,
             # and value tracking for cur_schedule to avoid duped adds
 
+    def cleanIgnores(self):
+        to_delete = set()
+        for (e,v) in self.values.items():
+            if v == None:
+                if (e.day == None or
+                    self.values.get(timeEntry(None,e.hour,e.minute),
+                                    None) == None):
+                    to_delete.add(e)
+        for e in to_delete:
+            self.values.pop(to_delete)
+
     def rebuildSchedule(self):
         new_schedule = [e for e in self.values
                           if e.day == None or e.day == self.cur_time.day]
@@ -118,8 +129,21 @@ class schedule:
         return output
 
     def tabled(self):
-        times = sorted(set(((t.hour, t.minute) for t in self.values)))
-        rows = [[self.values.get(timeEntry(x,t[0],t[1]), None)
-                 for x in [None] + list(range(7))] for t in times]
+        times = []
+        rows = []
+        for (h,m) in sorted(set(((t.hour, t.minute) for t in self.values))):
+            row = [None]*8
+            row[0] = self.values.get(timeEntry(None,h,m), None)
+            for x in list(range(7)):
+                e = timeEntry(x,h,m)
+                if e not in self.values:
+                    row[x+1] = None
+                elif self.values[e] == None and row[0] != None:
+                    row[x+1] = "Ignore"
+                else:
+                    row[x+1] = self.values[e]
+            if any(row):
+                times.append((h,m))
+                rows.append(row)
         return (times, rows)
 
