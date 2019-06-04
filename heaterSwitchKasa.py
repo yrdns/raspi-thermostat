@@ -1,7 +1,7 @@
 from pyHS100 import SmartPlug, Discover
 
-class heaterToggle():
-    def __init__(self, name="Heater", period = 60.0):
+class heaterSwitch():
+    def __init__(self, name="Heater"):
         self.name = name
         self.state = 0
 

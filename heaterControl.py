@@ -1,4 +1,4 @@
-from heaterToggleSmartSwitch import heaterToggle
+from heaterSwitchGPIO import heaterSwitch
 
 import threading 
 import time
@@ -8,7 +8,7 @@ class heaterControl():
         self.period = period
         self.level = 0.0
         self.to_delete = False
-        self.switch = heaterToggle()
+        self.switch = heaterSwitch()
 
         self.lock = threading.Condition()
         self.thread = threading.Thread(target=self.heaterThread)

@@ -1,8 +1,8 @@
 # Using gpiozero for simplicity's sake
 from gpiozero import LED
 
-class heaterToggle():
-    def __init__(self, pin=22, period = 60.0)
+class heaterSwitch():
+    def __init__(self, pin=21):
         self.gpio_dev = LED(pin)
 
     def setState(self, val):
