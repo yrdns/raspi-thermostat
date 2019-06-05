@@ -1,10 +1,10 @@
+from thermostat import Thermostat
+
 from flask import Flask, render_template, request, redirect
 import re
 
-from thermostat import Thermostat
-
 app = Flask(__name__)
-thermostat = Thermostat()
+thermostat = Thermostat(pref_file="prefs/thermostat.json", schedule_file="prefs/schedule.json")
 
 dayNames = ("Every Day", "Monday", "Tuesday", "Wednesday",
             "Thursday", "Friday", "Saturday", "Sunday")
@@ -48,6 +48,7 @@ def flaskThermostatUpdate():
             else:
                 thermostat.schedule.deleteEntry(day, hour, minute)
 
+            thermostat.schedule.writeFile()
             return redirect("/thermostat")
 
     if "add_time" in request.form:
@@ -61,10 +62,21 @@ def flaskThermostatUpdate():
 
             temp = float(request.form["schedule_temp"])
             thermostat.schedule.addEntry(day, hour, minute, temp)
-
-            return redirect("/thermostat")
         except Exception as err:
             print("Caught", err)
+
+        return redirect("/thermostat")
+
+    if "edit_tunings" in request.form:
+        try:
+            Kp = float(request.form["Kp"])
+            Ki = float(request.form["Ki"])
+            Kd = float(request.form["Kd"])
+            thermostat.setTunings(Kp, Ki, Kd)
+            thermostat.updateState()
+        except Exception as err:
+            print("Caught", err)
+        return redirect("/thermostat")
 
     new_temp = None
     try:
@@ -86,22 +98,7 @@ def flaskThermostatUpdate():
     if "force_on" in request.form:
         thermostat.setEnabled(2)
 
-    (Kp, Ki, Kd) = thermostat.getTunings()
-    try:
-        Kp = float(request.form["Kp"])
-    except Exception as err:
-        print("Caught", err)
-    try:
-        Ki = float(request.form["Ki"])
-    except Exception as err:
-        print("Caught", err)
-    try:
-        Kd = float(request.form["Kd"])
-    except Exception as err:
-        print("Caught", err)
-
     thermostat.setTargetTemp(new_temp)
-    thermostat.setTunings(Kp, Ki, Kd)
     thermostat.updateState()
 
     return redirect("/thermostat")

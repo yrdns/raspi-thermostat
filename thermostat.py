@@ -1,19 +1,58 @@
-from tempSensorDHT import tempSensor
 from heaterControl import heaterControl
 from schedule import schedule
 from simple_pid import PID
+from tempSensorDHT import tempSensor
 
+import json
+import os
 import threading
 import time
 
 class Thermostat:
-    def __init__(self):
+    def __init__(self, pref_file = None, schedule_file = None):
         self.lock = threading.Condition()
-        self.toggle = 1
+        self.thread = None
+
+        self.enabled = 0
+        self.pid = PID(1.0, 0.0, 0.0, setpoint=70, output_limits=(0.0, 1.0))
+        self.pref_file = pref_file
+        self.schedule = schedule(filename=schedule_file)
+
+        recent_temp = self.schedule.mostRecentTemp()
+        if recent_temp:
+            self.pid.setpoint = recent_temp
+
+        if pref_file:
+            if os.path.exists(pref_file):
+                prefs_dict = {}
+
+                self.pref_file = pref_file
+                try:
+                    fp = open(pref_file, "r")
+                    prefs_dict = json.load(fp)
+                    fp.close()
+                except Exception as err:
+                    print("Could note load prefs from", pref_file, err)
+
+                if not isinstance(prefs_dict, dict):
+                    print("Prefences loaded from %s invalid, discarding"
+                           % pref_file)
+                else:
+                    if ("state" in prefs_dict and
+                        prefs_dict["state"] in [0, 1, 2]):
+                        self.enabled = prefs_dict["state"]
+
+                    if (not recent_temp and "temp" in prefs_dict and
+                        isinstance(prefs_dict["temp"], (float, int))):
+                        self.pid.setpoint = prefs_dict["temp"]
+
+                    if "pid" in prefs_dict:
+                        self.pid.tunings = prefs_dict["pid"]
+            else:
+                self.writePrefs()
+
         self.sensor = tempSensor()
         self.control = heaterControl()
-        self.schedule = schedule()
-        self.pid = PID(0.5, 0.0, 0.2, setpoint=70, output_limits=(0.0, 1.0))
         self.state_changed = False
         self.to_delete = False
 
@@ -24,7 +63,7 @@ class Thermostat:
     def __del__(self):
         self.lock.acquire()
         self.to_delete = True
-        while self.thread.is_alive():
+        while self.thread and self.thread.is_alive():
             self.lock.notify()
             self.lock.wait()
             self.thread.join(0)
@@ -43,11 +82,11 @@ class Thermostat:
         return self.control.getLevel()
 
     def getEnabled(self):
-        return self.toggle
+        return self.enabled
 
     def setEnabled(self, val):
         val = min(max(int(val),0),2)
-        self.toggle = val
+        self.enabled = val
 
     def getTunings(self):
         return self.pid.tunings
@@ -73,9 +112,9 @@ class Thermostat:
                 self.setTargetTemp(scheduled_temp)
 
             status = 0
-            if (self.toggle == 2):
+            if (self.enabled == 2):
                 status = 1
-            elif (self.toggle == 1):
+            elif (self.enabled == 1):
                 status = self.pid(self.sensor.getTemp())
             self.control.setLevel(status)
 
@@ -90,4 +129,28 @@ class Thermostat:
         self.state_changed = True
         self.lock.notify()
         self.lock.release()
+        self.writePrefs()
+
+    def writePrefs(self):
+        if self.pref_file == None:
+            return False
+
+        directory = os.path.dirname(self.pref_file)
+        if not os.path.isdir(directory):
+            try:
+                os.makedirs(directory)
+            except Exception as err:
+                print("Could not create directory %s:" % directory, err)
+
+        prefs_dict = {"temp" : self.pid.setpoint,
+                      "state" : self.enabled,
+                      "pid" : self.pid.tunings}
+        try:
+            fp = open(self.pref_file, "w")
+            json.dump(prefs_dict, fp)
+            fp.close()
+        except Exception as err:
+            print("Could not create file %s:" % self.pref_file, err)
+            return False
+        return True
 

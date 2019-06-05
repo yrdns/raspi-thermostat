@@ -5,12 +5,14 @@ import time
 
 class heaterControl():
     def __init__(self, period = 60.0):
+        self.lock = threading.Condition()
+        self.thread = None
+
         self.period = period
         self.level = 0.0
         self.to_delete = False
         self.switch = heaterSwitch()
 
-        self.lock = threading.Condition()
         self.thread = threading.Thread(target=self.heaterThread)
         self.thread.daemon = True
         self.thread.start()
@@ -18,7 +20,7 @@ class heaterControl():
     def __del__(self):
         self.lock.acquire()
         self.to_delete = True
-        while self.thread.is_alive():
+        while self.thread and self.thread.is_alive():
             self.lock.notify()
             self.lock.wait()
             self.thead.join(0)
