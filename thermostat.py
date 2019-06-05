@@ -4,6 +4,7 @@ from simple_pid import PID
 from tempSensorDHT import tempSensor
 
 import json
+import logging
 import os
 import threading
 import time
@@ -12,6 +13,7 @@ class Thermostat:
     def __init__(self, pref_file = None, schedule_file = None):
         self.lock = threading.Condition()
         self.thread = None
+        self.next_check_time = time.time()
 
         self.enabled = 0
         self.pid = PID(1.0, 0.0, 0.0, setpoint=70, output_limits=(0.0, 1.0))
@@ -29,11 +31,10 @@ class Thermostat:
                     prefs_dict = json.load(fp)
                     fp.close()
                 except Exception as err:
-                    print("Could note load prefs from", pref_file, err)
+                    logging.error("Could note load prefs from %s: %s" % (pref_file, err))
 
                 if not isinstance(prefs_dict, dict):
-                    print("Prefences loaded from %s invalid, discarding"
-                           % pref_file)
+                    logging.error("Prefences loaded from %s invalid, discarding" % pref_file)
                 else:
                     if ("state" in prefs_dict and
                         prefs_dict["state"] in [0, 1, 2]):
@@ -46,7 +47,12 @@ class Thermostat:
                     if "pid" in prefs_dict:
                         self.pid.tunings = prefs_dict["pid"]
             else:
-                self.writePrefs()
+                logging.warning("Prefs file %s does not exist, attempting to create..." % pref_file)
+                if self.writePrefs():
+                    logging.warning("Creating %s successful" % pref_file)
+                else:
+                    logging.error("Creating pref file %s failed !!" % pref_file)
+
         if new_temp == None:
             new_temp = self.schedule.mostRecentTemp()
         if new_temp != None:
@@ -76,7 +82,7 @@ class Thermostat:
     def setTargetTemp(self, val):
         if self.pid.setpoint == val:
             return
-        print ("Updating new target temp from", self.pid.setpoint, "to", val)
+        logging.info("Updating new target temp from %f to %f" % (self.pid.setpoint, val))
         self.pid.setpoint = val
 
     def getStatus(self):
@@ -100,12 +106,11 @@ class Thermostat:
 
     def thermostatThread(self):
         self.lock.acquire()
-        next_check_time = time.time()
         while not self.to_delete:
-            print ("Checking thermostat...")
+            logging.info("Checking thermostat...")
             if not self.state_changed:
                 self.sensor.updateTemp()
-                next_check_time += 60.0
+                self.next_check_time += 60.0
             self.state_changed = False
 
             scheduled_temp = self.schedule.checkForUpdate()
@@ -123,8 +128,8 @@ class Thermostat:
                 self.writePrefs()
 
             cur_time = time.time()
-            if cur_time < next_check_time:
-                self.lock.wait(next_check_time - cur_time)
+            if cur_time < self.next_check_time:
+                self.lock.wait(self.next_check_time - cur_time)
         self.lock.notify()
         self.lock.release()
 
@@ -139,12 +144,13 @@ class Thermostat:
         if self.pref_file == None:
             return False
 
+        logging.debug("Writing prefs to %s" % self.pref_file)
         directory = os.path.dirname(self.pref_file)
         if not os.path.isdir(directory):
             try:
                 os.makedirs(directory)
             except Exception as err:
-                print("Could not create directory %s:" % directory, err)
+                logging.error("Could not create directory %s: %s" % (directory, err))
 
         prefs_dict = {"temp" : self.pid.setpoint,
                       "state" : self.enabled,
@@ -154,7 +160,7 @@ class Thermostat:
             json.dump(prefs_dict, fp)
             fp.close()
         except Exception as err:
-            print("Could not create file %s:" % self.pref_file, err)
+            logging.error("Could not create file %s: %s" % (self.pref_file, err))
             return False
         return True
 

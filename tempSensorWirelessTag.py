@@ -1,5 +1,7 @@
 from wirelesstagpy import WirelessTags
 
+import logging
+
 def toFahrenheit(val):
     return 1.8*val + 32
 
@@ -10,18 +12,18 @@ class tempSensor:
 
     def updateTemp(self):
         try:
-            #print ("Searching for valid tag...")
+            logging.debug("Searching for valid tag...")
             api = WirelessTags(username="kylej@mac.com", password="wirelesstaghomu")
             for (uuid, tag) in api.load_tags().items():
                 if tag.name == self.name:
-                    #print ("Found tag", tag.name, "with uuid", uuid)
+                    logging.debug("Found tag %s with uuid %s" % (tag.name, uuid))
                     self.most_recent_temp = toFahrenheit(tag.sensor['temperature'].value)
-                    print ("Updated temperature to", self.most_recent_temp)
+                    logging.debug("Updated temperature to %f" % self.most_recent_temp)
                     return True
         except Exception as error:
-            print ("Failed to update temperature due to exception:", error)
+            logging.exception("Failed to update temperature due to exception")
             return False
-        print ("Failed to find tag named", tag_name)
+        logging.error("Failed to find tag named %s" % tag_name)
         return False
 
     def getTemp(self):

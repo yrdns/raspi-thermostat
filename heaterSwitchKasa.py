@@ -1,5 +1,7 @@
 from pyHS100 import SmartPlug, Discover
 
+import logging
+
 class heaterSwitch():
     def __init__(self, name="Heater"):
         self.name = name
@@ -9,35 +11,36 @@ class heaterSwitch():
 
     def initializeSmartPlug(self):
         self.smart_plug = None
-        print ("Searching for valid plug...")
+        logging.info("Searching for valid plug...")
         try:
             for (ip, plug) in Discover.discover().items():
                 if self.name == plug.sys_info["alias"]:
-                    print ("Found plug", self.name, "at address", ip)
+                    logging.info("Found plug %s at address %s" % (self.name, ip))
                     self.smart_plug = plug
                     return True
         except Exception as error:
-            print ("Failed to initialize due to exception:", error)
-        print ("ERROR: Could not find any plug named", self.name)
+            logging.exception("Failed to initialize smart switch %s")
+        logging.error("Could not find any plug named %s" % self.name)
         return False
 
     def setState(self, val):
         try:
             if val:
-                print ("Turning heater on")
+                logging.debug("Turning heater on")
+
                 self.smart_plug.turn_on()
             else:
-                print ("Turning heater off")
+                logging.debug("Turning heater off")
                 self.smart_plug.turn_off()
             self.state = val
         except:
-            print ("Plug state gave error, attempting to re-discover...")
+            logging.exception("Plug state gave error, attempting to re-discover...")
             if (self.initializeSmartPlug()):
-                print ("Successful, retrying state read")
+                logging.error("Successful, retrying state read")
                 # Does python support tail recursion?
                 return self.setState(val)
             else:
-                print ("Failed, ignoring set state command")
+                logging.error("Re-discovery failed, ignoring setState")
 
     def getState(self):
         return self.state
@@ -52,11 +55,11 @@ class heaterSwitch():
             if cur_state == "OFF":
                 return 0
         except Exception as error:
-            print ("Plug state gave error <", error, "> attempting to re-discover...")
+            logging.exception("Plug state threw error attempting to re-discover...")
             if (self.initializeSmartPlug()):
-                print ("Successful, retrying state read")
+                logging.error("Successful, retrying state read")
                 return self.lookupState()
-            print ("Failed, returning error")
+            logging.error("Failed, returning error")
             return -3
         return -1
 

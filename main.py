@@ -1,7 +1,10 @@
 from thermostat import Thermostat
 
 from flask import Flask, render_template, request, redirect
+import logging
 import re
+
+logging.basicConfig(level="INFO")
 
 app = Flask(__name__)
 thermostat = Thermostat(pref_file="prefs/thermostat.json", schedule_file="prefs/schedule.json")
@@ -65,7 +68,7 @@ def flaskThermostatUpdate():
 
             thermostat.schedule.writeFile()
         except Exception as err:
-            print("Caught", err)
+            logging.exception("Parsing add_time caught exception")
 
         return redirect("/thermostat")
 
@@ -77,14 +80,14 @@ def flaskThermostatUpdate():
             thermostat.setTunings(Kp, Ki, Kd)
             thermostat.updateState()
         except Exception as err:
-            print("Caught", err)
+            logging.exception("Parsing edit_tunings caught exception")
         return redirect("/thermostat")
 
     new_temp = None
     try:
         new_temp = float(request.form["temp"])
     except Exception as err:
-        print("Caught", err)
+        logging.exception("Parsing temp caught exception")
 
     # Get lock to avoid concurrency & enable signaling
     if new_temp == None:

@@ -2,6 +2,7 @@ from functools import total_ordering
 from heapq import heappush, heappop, heapify
 
 import json
+import logging
 import os
 import time
 
@@ -37,19 +38,19 @@ class schedule:
 
         self.filename=filename
         if filename:
-            input_dict = None
-            try:
-                fp = open(filename, "r")
-                input_data = json.load(fp)
-                fp.close()
-                for (i,l) in enumerate(input_data):
-                    d = None
-                    if i > 0:
-                        d = i-1
-                    for (h,m,t) in l:
-                        self.addEntry(d, h, m, t)
-            except Exception as err:
-                print("Could not load schedule from", filename, ":", err)
+            if os.path.exists(filename):
+                try:
+                    fp = open(filename, "r")
+                    input_data = json.load(fp)
+                    fp.close()
+                    for (i,l) in enumerate(input_data):
+                        d = None
+                        if i > 0:
+                            d = i-1
+                        for (h,m,t) in l:
+                            self.addEntry(d, h, m, t)
+                except Exception as err:
+                    logging.error("Could not load schedule from %s: %s" % (filename, err))
 
     def __bool__(self):
         return self.values.__bool__()
@@ -182,8 +183,7 @@ class schedule:
             try:
                 os.makedirs(directory)
             except Exception as err:
-                print("Could not create directory %s:" % directory, err)
-                return False
+                logging.error("Could not create directory %s: %s" % (directory, err))
 
         data = self.serialize()
         try:
@@ -191,6 +191,6 @@ class schedule:
             json.dump(data, fp)
             fp.close()
         except Exception as err:
-            print("Could not write file %s:" % fp, err)
+            logging.error("Could not write file %s: %s" % (filename, err))
             return False
         return True
