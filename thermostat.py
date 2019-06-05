@@ -18,10 +18,7 @@ class Thermostat:
         self.pref_file = pref_file
         self.schedule = schedule(filename=schedule_file)
 
-        recent_temp = self.schedule.mostRecentTemp()
-        if recent_temp:
-            self.pid.setpoint = recent_temp
-
+        new_temp = None
         if pref_file:
             if os.path.exists(pref_file):
                 prefs_dict = {}
@@ -42,14 +39,18 @@ class Thermostat:
                         prefs_dict["state"] in [0, 1, 2]):
                         self.enabled = prefs_dict["state"]
 
-                    if (not recent_temp and "temp" in prefs_dict and
+                    if ("temp" in prefs_dict and
                         isinstance(prefs_dict["temp"], (float, int))):
-                        self.pid.setpoint = prefs_dict["temp"]
+                        new_temp = prefs_dict["temp"]
 
                     if "pid" in prefs_dict:
                         self.pid.tunings = prefs_dict["pid"]
             else:
                 self.writePrefs()
+        if new_temp == None:
+            new_temp = self.schedule.mostRecentTemp()
+        if new_temp != None:
+            self.pid.setpoint = new_temp
 
         self.sensor = tempSensor()
         self.control = heaterControl()
@@ -117,6 +118,9 @@ class Thermostat:
             elif (self.enabled == 1):
                 status = self.pid(self.sensor.getTemp())
             self.control.setLevel(status)
+
+            if scheduled_temp:
+                self.writePrefs()
 
             cur_time = time.time()
             if cur_time < next_check_time:
