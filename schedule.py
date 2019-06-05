@@ -43,12 +43,16 @@ class schedule:
                     fp = open(filename, "r")
                     input_data = json.load(fp)
                     fp.close()
-                    for (i,l) in enumerate(input_data):
-                        d = None
-                        if i > 0:
-                            d = i-1
-                        for (h,m,t) in l:
-                            self.addEntry(d, h, m, t)
+                    if "time" in input_data:
+                        (d,h,m) = input_data["time"]
+                        self.cur_time = (d,h,m)
+                    if "schedule" in input_data:
+                        for (i,l) in enumerate(input_data["schedule"]):
+                            d = None
+                            if i > 0:
+                                d = i-1
+                            for (h,m,t) in l:
+                                self.addEntry(d, h, m, t)
                 except Exception as err:
                     logging.error("Could not load schedule from %s: %s" % (filename, err))
 
@@ -185,7 +189,8 @@ class schedule:
             except Exception as err:
                 logging.error("Could not create directory %s: %s" % (directory, err))
 
-        data = self.serialize()
+        data = {"time" : self.cur_time,
+                "schedule" : self.serialize()}
         try:
             fp = open(filename, "w")
             json.dump(data, fp)
