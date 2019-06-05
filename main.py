@@ -3,6 +3,7 @@ from thermostat import Thermostat
 from flask import Flask, render_template, request, redirect
 import logging
 import re
+import signal
 
 logging.basicConfig(level="INFO")
 
@@ -109,6 +110,16 @@ def flaskThermostatUpdate():
     return redirect("/thermostat")
 
 if __name__ == "__main__":
+    def graceful_exit(signum, frame):
+        logging.warning("Received signal %d, exiting gracefully...", signum)
+        thermostat.writePrefs()
+        thermostat.schedule.writeFile()
+        logging.warning("Cleanup complete.")
+        exit()
+
+    signal.signal(signal.SIGINT, graceful_exit)
+    signal.signal(signal.SIGTERM, graceful_exit)
+
     @app.route("/")
     def redirectToThermostat():
         return redirect("/thermostat")

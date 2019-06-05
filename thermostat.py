@@ -76,9 +76,6 @@ class Thermostat:
             self.thread.join(0)
         self.lock.release()
 
-        self.schedule.writeFile()
-        self.writePrefs()
-
     def getTargetTemp(self):
         return self.pid.setpoint
 
