@@ -5,82 +5,33 @@ import json
 import os
 import time
 
-@total_ordering
-class timeEntry:
-    def verify(self):
-        return ((self.day == None or (self.day >= 0 and self.day <= 6)) and
-                self.hour >= 0 and self.hour <= 23 and
-                self.minute >= 0 and self.minute <= 59)
+def verifyTimeEntry(e):
+    return ((e[0] == None or (e[0] >= 0 and e[0] <= 6)) and
+            e[1] >= 0 and e[1] <= 23 and
+            e[2] >= 0 and e[2] <= 59)
 
-    def __init__(self, a1=None, a2=None, a3=None):
-        d = None
-        h = None
-        m = None
-        if a2 == None:
-            if a1 != None or a3 != None:
-                raise ValueError
-            localtime = time.localtime()
-            d = localtime.tm_wday
-            h = localtime.tm_hour
-            m = localtime.tm_min
-        else:
-            if a3 == None:
-                if a1 == None:
-                    raise ValueError
-                d = None
-                h = a1
-                m = a2
-            else:
-                d = a1
-                h = a2
-                m = a3
+def timeBetween(a, b):
+    if a == b:
+        return 0
 
-        self.day = d
-        self.hour = h
-        self.minute = m
-        if not self.verify():
-            raise ValueError((d,h,m))
+    (d1, h1, m1) = a
+    (d2, h2, m2) = b
 
-    def __getitem__(self, i):
-        return (self.day, self.hour, self.minute)[i]
+    week_minutes1 = 60*(24*d1 + h1) + m1
+    week_minutes2 = 60*(24*d2 + h2) + m2
 
-    def __eq__(self, other):
-        return (self.day == other[0] and
-                self.hour == other[1] and
-                self.minute == other[2])
+    return (week_minutes2 - week_minutes1)%(7*24*60)
 
-    def __lt__(self, other):
-        if self.hour != other.hour:
-            return self.hour < other.hour
-        if self.minute != other.minute:
-            return self.minute < other.minute
-        if self.day == None and other.day != None:
-            return True
-        if self.day != None and other.day == None:
-            return False
-        return self.day != other.day and self.day < other.day
-
-    def __hash__(self):
-        return (self.day, self.hour, self.minute).__hash__()
-
-    def __repr__(self):
-        return (self.day, self.hour, self.minute).__repr__()
-
-    def timeUntil(self, target):
-        if self == target:
-            return 0
-
-        d1 = self.day if self.day != None else 0
-        week_minutes1 = 60*(24*d1 + self.hour) + self.minute
-        d2 = target.day if target.day != None else 0
-        week_minutes2 = 60*(24*d2 + target.hour) + target.minute
-
-        return (week_minutes2 - week_minutes1)%(7*24*60)
+def curTime():
+    localtime = time.localtime()
+    return (localtime.tm_wday,
+            localtime.tm_hour,
+            localtime.tm_min)
 
 class schedule:
     def __init__(self, filename=None):
         self.values = {}
-        self.cur_time = timeEntry()
+        self.cur_time = curTime()
         self.cur_schedule = []
         self.cur_schedule_vals = set()
 
@@ -103,66 +54,75 @@ class schedule:
     def __bool__(self):
         return self.values.__bool__()
 
-    def addEntry(self, d, h, m, temp):
-        newEntry = timeEntry(d, h, m)
-        if ((newEntry.day == None or newEntry.day == self.cur_time.day) and
-              newEntry > self.cur_time and
-              newEntry not in self.cur_schedule_vals):
-            heappush(self.cur_schedule, newEntry)
-            self.cur_schedule_vals.add(newEntry)
-        self.values[newEntry] = temp
+    def addEntry(self, d, h, m, t):
+        (cd,ch,cm) = self.cur_time
+        if ((d == None or d == cd) and
+            (h, m) > (ch, cm) and
+            (h, m) not in self.cur_schedule_vals):
+
+            heappush(self.cur_schedule, (h, m))
+            self.cur_schedule_vals.add((h, m))
+
+        self.values[(d, h, m)] = t
 
     def deleteEntry(self, d, h, m):
-        newEntry = timeEntry(d, h, m)
-        if newEntry in self.values:
-            self.values.pop(newEntry)
-            # Not worth deleting froms cur_schedule, would be non-constant
-            # time. Use defaults on dictionnary lookups to avoid ValueErrors,
-            # and value tracking for cur_schedule to avoid duped adds
+        self.values.pop((d, h, m), None)
+        # Not worth deleting froms cur_schedule, would be non-constant
+        # time. Use defaults on dictionnary lookups to avoid ValueErrors,
+        # and value tracking for cur_schedule to avoid duped adds
 
     def cleanIgnores(self):
         to_delete = set()
-        for (e,v) in self.values.items():
-            if v == None:
-                if (e.day == None or
-                    self.values.get((None,e.hour,e.minute), None) == None):
-                    to_delete.add(e)
+        for ((d, h, m), v) in self.values.items():
+            if v == None and (d == None or
+                              self.values.get((None, h, m), None) == None):
+                to_delete.add((d, h, m))
         for e in to_delete:
-            self.values.pop(to_delete)
+            self.values.pop(e, None)
 
     def rebuildSchedule(self, day=None):
-        d = self.cur_time.day
-        new_schedule = [e for e in self.values
-                          if (e.day == d or
-                              (e.day == None and
-                               (d, e.hour, e.minute) not in self.values))]
-
+        dc = self.cur_time.day
+        new_vals = set(((h,m) for (d,h,m) in self.values
+                        if d == dc or d == None))
+        new_schedule = list(new_vals)
         heapify(new_schedule)
 
         self.cur_schedule = new_schedule
-        self.cur_schedule_vals = set(new_schedule)
+        self.cur_schedule_vals = new_vals
+
+    def lookupTime(self, d, h, m, default=None):
+        result = None
+        if (d, h, m) in self.values:
+            result = self.values[(d, h, m)]
+        else:
+            result = self.values.get((None, h, m), None)
+        if result != None:
+            return result
+
+        return default
 
     def checkForUpdate(self):
-        old_time = self.cur_time
-        self.cur_time = timeEntry()
+        (od, oh, om) = self.cur_time
+        self.cur_time = curTime()
+        (cd, ch, cm) = self.cur_time
 
         new_temp = None
-        if self.cur_time.day != old_time.day:
+        if cd != od:
             while self.cur_schedule:
-                new_temp = self.values.get(heappop(self.cur_schedule),
-                                           new_temp)
+                (h, m) = heappop(self.cur_schedule)
+                new_temp = self.lookupTime(od, h, m, new_temp)
             self.rebuildSchedule()
 
-        while self.cur_schedule and self.cur_time >= self.cur_schedule[0]:
-            new_temp = self.values.get(heappop(self.cur_schedule), new_temp)
+        while self.cur_schedule and (ch, cm) >= self.cur_schedule[0]:
+            (h, m) = heappop(self.cur_schedule)
+            new_temp = self.lookupTime(cd, h, m, new_temp)
 
         return new_temp
 
     def serialize(self):
         output = [[] for x in range(8)]
-        for (time, temp) in self.values.items():
-            output[0 if time.day == None else time.day+1].append(
-                (time.hour, time.minute, temp))
+        for ((d, h, m), t) in self.values.items():
+            output[0 if d == None else d+1].append((h, m, t))
         for l in output:
             l.sort()
         return output
@@ -170,11 +130,11 @@ class schedule:
     def tabled(self):
         times = []
         rows = []
-        for (h,m) in sorted(set(((t.hour, t.minute) for t in self.values))):
+        for (h,m) in sorted(set(((h_, m_) for (d_, h_, m_) in self.values))):
             row = [None]*8
             row[0] = self.values.get((None,h,m), None)
             for x in list(range(7)):
-                e = timeEntry(x,h,m)
+                e = (x,h,m)
                 if e not in self.values:
                     row[x+1] = None
                 elif self.values[e] == None and row[0] != None:
@@ -189,20 +149,23 @@ class schedule:
     def mostRecentTemp(self):
         most_recent_val = None
         most_recent_dist = None
-        for (e,v) in self.values.items():
+
+        (cd, ch, cm) = self.cur_time
+        for ((d,h,m), v) in self.values.items():
             if v != None:
-                if e.day == None:
+                if d == None:
+                    d0 = cd
+                    if (h,m) > (ch, cm):
+                        d0 -= 1;
                     for x in range(7):
-                        e2 = timeEntry((self.cur_time.day - x)%7,
-                                       e.hour,
-                                       e.minute)
-                        if e2 not in self.values:
-                            e = e2
+                        dn = (d0 - x)%7
+                        if (dn, h, m) not in self.values:
+                            d = dn
                             break
-                if e.day != None:
-                    if e == self.cur_time:
+                if d != None:
+                    if (d,h,m) == self.cur_time:
                         return v
-                    dist = self.cur_time.timeUntil(e)
+                    dist = timeBetween((d,h,m), (cd, ch, cm))
                     if most_recent_dist == None or dist < most_recent_dist:
                         most_recent_dist = dist
                         most_recent_val = v

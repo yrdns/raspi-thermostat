@@ -62,6 +62,8 @@ def flaskThermostatUpdate():
 
             temp = float(request.form["schedule_temp"])
             thermostat.schedule.addEntry(day, hour, minute, temp)
+
+            thermostat.schedule.writeFile()
         except Exception as err:
             print("Caught", err)
 
