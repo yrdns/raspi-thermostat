@@ -86,7 +86,7 @@ class schedule:
             self.values.pop(e, None)
 
     def rebuildSchedule(self, day=None):
-        dc = self.cur_time.day
+        dc = self.cur_time[0]
         new_vals = set(((h,m) for (d,h,m) in self.values
                         if d == dc or d == None))
         new_schedule = list(new_vals)
