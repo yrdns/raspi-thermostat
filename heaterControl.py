@@ -1,5 +1,6 @@
 from heaterSwitchGPIO import heaterSwitch
 
+import logging
 import threading 
 import time
 
