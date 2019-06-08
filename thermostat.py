@@ -10,57 +10,20 @@ import threading
 import time
 
 class Thermostat:
-    def __init__(self, pref_file = None, schedule_file = None):
+    def __init__(self, pref_file = None, schedule_file = None, runhistory_file = None):
         self.lock = threading.Condition()
         self.thread = None
         self.next_check_time = time.time()
 
         self.enabled = 0
         self.pid = PID(1.0, 0.0, 0.0, setpoint=70, output_limits=(0.0, 1.0))
+        self.schedule = schedule(save_file=schedule_file)
+
         self.pref_file = pref_file
-        self.schedule = schedule(filename=schedule_file)
-
-        new_temp = None
-        if pref_file:
-            if os.path.exists(pref_file):
-                prefs_dict = {}
-
-                self.pref_file = pref_file
-                try:
-                    fp = open(pref_file, "r")
-                    prefs_dict = json.load(fp)
-                    fp.close()
-                except Exception as err:
-                    logging.error("Could note load prefs from %s: %s" % (pref_file, err))
-
-                if not isinstance(prefs_dict, dict):
-                    logging.error("Prefences loaded from %s invalid, discarding" % pref_file)
-                else:
-                    if ("state" in prefs_dict and
-                        prefs_dict["state"] in [0, 1, 2]):
-                        self.enabled = prefs_dict["state"]
-
-                    if ("temp" in prefs_dict and
-                        isinstance(prefs_dict["temp"], (float, int))):
-                        new_temp = prefs_dict["temp"]
-
-                    if "pid" in prefs_dict:
-                        self.pid.tunings = prefs_dict["pid"]
-            else:
-                logging.warning("Prefs file %s does not exist, attempting to create..." % pref_file)
-                if self.writePrefs():
-                    logging.warning("Creating %s successful" % pref_file)
-                else:
-                    logging.error("Creating pref file %s failed !!" % pref_file)
-
-        if new_temp == None:
-            new_temp = self.schedule.mostRecentTemp()
-        if new_temp != None:
-            self.pid.setpoint = new_temp
+        self.loadPrefs()
 
         self.sensor = tempSensor()
-        self.control = heaterControl()
-        self.state_changed = False
+        self.control = heaterControl(save_file=runhistory_file)
         self.to_delete = False
 
         self.thread = threading.Thread(target=self.thermostatThread)
@@ -88,6 +51,15 @@ class Thermostat:
     def getStatus(self):
         return self.control.getLevel()
 
+    def getDayRunTime(self):
+        return self.control.getCurRunTime()
+
+    def getPastRunTimes(self, days=None, skip=None, start_day=None):
+        return self.control.getPastRunTimes(days, skip, start_day)
+
+    def saveRunHistory(self):
+        return self.control.saveHistory()
+
     def getEnabled(self):
         return self.enabled
 
@@ -108,10 +80,10 @@ class Thermostat:
         self.lock.acquire()
         while not self.to_delete:
             logging.info("Checking thermostat...")
-            if not self.state_changed:
+            cur_time = time.time()
+            if cur_time > self.next_check_time:
                 self.sensor.updateTemp()
                 self.next_check_time += 60.0
-            self.state_changed = False
 
             scheduled_temp = self.schedule.checkForUpdate()
             if scheduled_temp != None:
@@ -125,7 +97,7 @@ class Thermostat:
             self.control.setLevel(status)
 
             if scheduled_temp:
-                self.writePrefs()
+                self.savePrefs()
 
             cur_time = time.time()
             if cur_time < self.next_check_time:
@@ -135,17 +107,19 @@ class Thermostat:
 
     def updateState(self):
         self.lock.acquire()
-        self.state_changed = True
         self.lock.notify()
         self.lock.release()
-        self.writePrefs()
+        self.savePrefs()
 
-    def writePrefs(self):
-        if self.pref_file == None:
+    def savePrefs(self, filename=None):
+        if filename == None:
+            filename = self.pref_file
+        if filename == None:
             return False
 
-        logging.debug("Writing prefs to %s" % self.pref_file)
-        directory = os.path.dirname(self.pref_file)
+        success = True
+        logging.debug("Writing prefs to %s" % filename)
+        directory = os.path.dirname(filename)
         if not os.path.isdir(directory):
             try:
                 os.makedirs(directory)
@@ -156,11 +130,52 @@ class Thermostat:
                       "state" : self.enabled,
                       "pid" : self.pid.tunings}
         try:
-            fp = open(self.pref_file, "w")
+            fp = open(filename, "w")
             json.dump(prefs_dict, fp)
             fp.close()
         except Exception as err:
-            logging.error("Could not create file %s: %s" % (self.pref_file, err))
-            return False
-        return True
+            logging.error("Could not create file %s: %s" % (filename, err))
+            success = False
+
+        return success
+
+    def loadPrefs(self, filename=None):
+        if filename == None:
+            filename = self.pref_file
+
+        new_temp = None
+        if filename:
+            if os.path.exists(filename):
+                prefs_dict = {}
+                try:
+                    fp = open(filename, "r")
+                    prefs_dict = json.load(fp)
+                    fp.close()
+                except Exception as err:
+                    logging.error("Could note load prefs from %s: %s" % (filename, err))
+
+                if not isinstance(prefs_dict, dict):
+                    logging.error("Prefences loaded from %s invalid, discarding" % filename)
+                else:
+                    if ("state" in prefs_dict and
+                        prefs_dict["state"] in [0, 1, 2]):
+                        self.enabled = prefs_dict["state"]
+
+                    if ("temp" in prefs_dict and
+                        isinstance(prefs_dict["temp"], (float, int))):
+                        new_temp = prefs_dict["temp"]
+
+                    if "pid" in prefs_dict:
+                        self.pid.tunings = prefs_dict["pid"]
+            else:
+                logging.warning("Prefs file %s does not exist, attempting to create..." % filename)
+                if self.savePrefs(filename):
+                    logging.warning("Creating %s successful" % filename)
+                else:
+                    logging.error("Creating pref file %s failed !!" % filename)
+
+        if new_temp == None:
+            new_temp = self.schedule.mostRecentTemp()
+        if new_temp != None:
+            self.pid.setpoint = new_temp
 

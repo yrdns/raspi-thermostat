@@ -30,34 +30,17 @@ def curTime():
             localtime.tm_min)
 
 class schedule:
-    def __init__(self, filename=None):
+    def __init__(self, save_file=None):
         self.values = {}
         self.cur_time = curTime()
         self.cur_schedule = []
         self.cur_schedule_vals = set()
 
-        self.filename=filename
-        if filename:
-            if os.path.exists(filename):
-                try:
-                    fp = open(filename, "r")
-                    input_data = json.load(fp)
-                    fp.close()
-                    if "time" in input_data:
-                        (d,h,m) = input_data["time"]
-                        self.cur_time = (d,h,m)
-                    if "schedule" in input_data:
-                        for (i,l) in enumerate(input_data["schedule"]):
-                            d = None
-                            if i > 0:
-                                d = i-1
-                            for (h,m,t) in l:
-                                self.addEntry(d, h, m, t)
-                except Exception as err:
-                    logging.error("Could not load schedule from %s: %s" % (filename, err))
+        self.save_file=save_file
+        self.loadSchedule()
 
     def __bool__(self):
-        return self.values.__bool__()
+        return bool(self.values)
 
     def addEntry(self, d, h, m, t):
         (cd,ch,cm) = self.cur_time
@@ -176,11 +159,11 @@ class schedule:
                         most_recent_val = v
         return most_recent_val
 
-    def writeFile(self, filename=None):
+    def saveSchedule(self, filename=None):
         if filename == None:
-            if self.filename == None:
-                return False
-            filename = self.filename
+            filename = self.save_file
+        if not filename:
+            return False
 
         directory = os.path.dirname(filename)
         if directory and not os.path.isdir(directory):
@@ -199,3 +182,26 @@ class schedule:
             logging.error("Could not write file %s: %s" % (filename, err))
             return False
         return True
+
+    def loadSchedule(self, filename=None):
+        if filename == None:
+            filename = self.save_file
+        if not filename or not os.path.exists(filename):
+            return
+        try:
+            fp = open(filename, "r")
+            input_data = json.load(fp)
+            fp.close()
+            if "time" in input_data:
+                (d,h,m) = input_data["time"]
+                self.cur_time = (d,h,m)
+            if "schedule" in input_data:
+                for (i,l) in enumerate(input_data["schedule"]):
+                    d = None
+                    if i > 0:
+                        d = i-1
+                    for (h,m,t) in l:
+                        self.addEntry(d, h, m, t)
+        except Exception as err:
+            logging.error("Could not load schedule from %s: %s" % (filename, err))
+

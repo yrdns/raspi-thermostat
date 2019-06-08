@@ -26,6 +26,7 @@ input[type=number] {
     Current Temperature: {{ currentTemp }}&deg;F <br>
     Target Temperature: {{ targetTemp }}&deg;F <br>
     Current On Value: {{ status }}% <br>
+    Today's Run Time: {{ "%02dh:%02dm:%02ds" % runtime }} <br>
     <br>
     <form method="post">
         <input type="number" step="any" name="temp" value="{{ targetTemp }}">

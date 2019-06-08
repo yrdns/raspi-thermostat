@@ -8,7 +8,7 @@ import signal
 logging.basicConfig(level="INFO")
 
 app = Flask(__name__)
-thermostat = Thermostat(pref_file="prefs/thermostat.json", schedule_file="prefs/schedule.json")
+thermostat = Thermostat(pref_file="prefs/thermostat.json", schedule_file="prefs/schedule.json", runhistory_file="prefs/history.json")
 
 dayNames = ("Every Day", "Monday", "Tuesday", "Wednesday",
             "Thursday", "Friday", "Saturday", "Sunday")
@@ -25,11 +25,13 @@ def flaskThermostat():
                                           "AM" if h<12 else "PM"),
                       "%02d%02d" % (h, m))
                        for (h,m) in scheduleTimes]
+    run_time = int(thermostat.getDayRunTime() + .5)
     templateData = {
         "currentTemp" : round(thermostat.getCurrentTemp(), 2),
         "targetTemp" : thermostat.getTargetTemp(),
         "enabled" : ("Off", "On", "Force On")[thermostat.getEnabled()],
         "status" : round(100*thermostat.getStatus(), 2),
+        "runtime" : (run_time//3600, (run_time%3600)//60, run_time%60),
         "Kp" : Kp, "Ki" : Ki, "Kd" : Kd,
         "dayNames" : dayNames,
         "scheduleTimes" : scheduleTimes,
@@ -52,7 +54,7 @@ def flaskThermostatUpdate():
             else:
                 thermostat.schedule.deleteEntry(day, hour, minute)
 
-            thermostat.schedule.writeFile()
+            thermostat.schedule.saveSchedule()
             return redirect("/thermostat")
 
     if "add_time" in request.form:
@@ -67,7 +69,7 @@ def flaskThermostatUpdate():
             temp = float(request.form["schedule_temp"])
             thermostat.schedule.addEntry(day, hour, minute, temp)
 
-            thermostat.schedule.writeFile()
+            thermostat.schedule.saveSchedule()
         except Exception as err:
             logging.exception("Parsing add_time caught exception")
 
@@ -112,8 +114,9 @@ def flaskThermostatUpdate():
 if __name__ == "__main__":
     def graceful_exit(signum, frame):
         logging.warning("Received signal %d, exiting gracefully...", signum)
-        thermostat.writePrefs()
-        thermostat.schedule.writeFile()
+        thermostat.savePrefs()
+        thermostat.saveRunHistory()
+        thermostat.schedule.saveSchedule()
         logging.warning("Cleanup complete.")
         exit()
 
