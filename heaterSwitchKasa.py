@@ -19,7 +19,7 @@ class heaterSwitch():
                     self.smart_plug = plug
                     return True
         except Exception as error:
-            logging.exception("Failed to initialize smart switch %s")
+            logging.exception("Failed to initialize smart switch %s" % self.name)
         logging.error("Could not find any plug named %s" % self.name)
         return False
 
@@ -35,7 +35,7 @@ class heaterSwitch():
             self.state = val
         except:
             logging.exception("Plug state gave error, attempting to re-discover...")
-            if (self.initializeSmartPlug()):
+            if self.initializeSmartPlug():
                 logging.error("Successful, retrying state read")
                 # Does python support tail recursion?
                 return self.setState(val)
@@ -56,7 +56,7 @@ class heaterSwitch():
                 return 0
         except Exception as error:
             logging.exception("Plug state threw error attempting to re-discover...")
-            if (self.initializeSmartPlug()):
+            if self.initializeSmartPlug():
                 logging.error("Successful, retrying state read")
                 return self.lookupState()
             logging.error("Failed, returning error")
