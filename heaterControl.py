@@ -47,7 +47,7 @@ class heaterControl():
     def getLevel(self):
         return self.level
 
-    def getCurRunTime(self, cur_time=None):
+    def getCurRuntime(self, cur_time=None):
         if cur_time == None:
             cur_time = time.time()
 
@@ -63,7 +63,7 @@ class heaterControl():
         self.lock.release()
         return runtime
 
-    def getPastRunTimes(self, days=None, skip=None, start_day=None):
+    def getPastRuntimes(self, days=None, skip=None, start_day=None):
         if skip == None:
             skip = 0
         self.lock.acquire()
@@ -87,7 +87,7 @@ class heaterControl():
             result.append(k.year, k.month, k.day, self.past_runtimes[k])
         return result
 
-    def stashRunTime(self, cur_time = None):
+    def stashRuntime(self, cur_time = None):
         if cur_time == None:
             cur_time = time.time()
 
@@ -106,7 +106,7 @@ class heaterControl():
             cur_time = time.time()
             new_day = datetime.date.fromtimestamp(cur_time)
             if new_day != self.cur_day:
-                self.stashRunTime(cur_time)
+                self.stashRuntime(cur_time)
                 self.cur_day = new_day
                 self.saveHistory()
 

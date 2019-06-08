@@ -51,11 +51,11 @@ class Thermostat:
     def getStatus(self):
         return self.control.getLevel()
 
-    def getDayRunTime(self):
-        return self.control.getCurRunTime()
+    def getDayRuntime(self):
+        return self.control.getCurRuntime()
 
-    def getPastRunTimes(self, days=None, skip=None, start_day=None):
-        return self.control.getPastRunTimes(days, skip, start_day)
+    def getPastRuntimes(self, days=None, skip=None, start_day=None):
+        return self.control.getPastRuntimes(days, skip, start_day)
 
     def saveRunHistory(self):
         return self.control.saveHistory()
