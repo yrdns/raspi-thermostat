@@ -112,11 +112,18 @@ class heaterControl():
             else:
                 self.switch.setState(0)
 
-                cur_time = time.time()
                 if self.cur_start_time != None:
-                    self.cur_runtime += cur_time - self.cur_start_time
-                    self.cur_start_time = None
+                    cur_time = time.time()
+                    if cur_time > self.cur_start_time:
+                        self.cur_runtime += cur_time - self.cur_start_time
+                        self.cur_start_time = None
+                    else:
+                        # Most likely loaded a bad value
+                        logging.error("Current heater start time %s greate then current time %s. Discarding value" % (self.cur_start_time, cur_time))
+                        self.cur_start_time = None
+                    self.saveHistory()
 
+                cur_time = time.time()
                 period_pos = (cur_time - start_time) % self.period
                 if period_pos > period_threshold:
                     self.lock.wait(self.period - period_pos)
