@@ -47,8 +47,21 @@ class heaterControl():
     def getLevel(self):
         return self.level
 
-    def getCurRunTime(self):
-        return self.cur_runtime
+    def getCurRunTime(self, cur_time=None):
+        if cur_time == None:
+            cur_time = time.time()
+
+        self.lock.acquire()
+        runtime = self.cur_runtime
+        if self.cur_start_time != None:
+            if cur_time >= self.cur_start_time:
+                runtime += cur_time - self.cur_start_time
+            elif time.time() < self.cur_start_time:
+                # Most likely loaded a bad value
+                logging.error("Current heater start time %s greate then current time %s. Discarding value" % (self.cur_start_time, cur_time))
+                self.cur_start_time = None
+        self.lock.release()
+        return runtime
 
     def getPastRunTimes(self, days=None, skip=None, start_day=None):
         if skip == None:
@@ -79,9 +92,9 @@ class heaterControl():
             cur_time = time.time()
 
         self.lock.acquire()
-        if self.cur_start_time != None and cur_time > self.cur_start_time:
-            self.cur_start_time += self.cur_run_start_time - cur_time
-            self.cur_run_start_time = cur_time
+        if self.cur_start_time != None:
+            self.cur_runtime = self.getCurRuntime(cur_time=cur_time)
+            self.cur_start_time = cur_time
         self.past_runtimes[self.cur_day] = self.cur_runtime
         self.cur_runtime = 0.0
         self.lock.release()
@@ -103,6 +116,8 @@ class heaterControl():
             if period_pos < period_threshold:
                 if self.cur_start_time == None:
                     self.cur_start_time = cur_time
+                else:
+                    self.saveHistory()
                 self.switch.setState(1)
 
                 cur_time = time.time()
@@ -113,14 +128,8 @@ class heaterControl():
                 self.switch.setState(0)
 
                 if self.cur_start_time != None:
-                    cur_time = time.time()
-                    if cur_time > self.cur_start_time:
-                        self.cur_runtime += cur_time - self.cur_start_time
-                        self.cur_start_time = None
-                    else:
-                        # Most likely loaded a bad value
-                        logging.error("Current heater start time %s greate then current time %s. Discarding value" % (self.cur_start_time, cur_time))
-                        self.cur_start_time = None
+                    self.cur_runtime = self.getCurRuntime()
+                    self.cur_start_time = None
                     self.saveHistory()
 
                 cur_time = time.time()
@@ -157,7 +166,7 @@ class heaterControl():
             cur_runtime = cur_runtime + (cur_time - self.cur_start_time)
 
         data = {"cur_day" : (self.cur_day.year, self.cur_day.month, self.cur_day.day),
-                "cur_runtime" : cur_runtime,
+                "cur_runtime" : self.getCurRuntime(),
                 "history" : self.serializeHistory()}
         try:
             fp = open(filename, "w")
