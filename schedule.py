@@ -36,7 +36,7 @@ class schedule:
         self.cur_schedule = []
         self.cur_schedule_vals = set()
 
-        self.save_file=save_file
+        self.save_file = save_file
         self.loadSchedule()
 
     def __bool__(self):
@@ -170,7 +170,8 @@ class schedule:
             try:
                 os.makedirs(directory)
             except Exception as err:
-                logging.error("Could not create directory %s: %s" % (directory, err))
+                logging.error("Could not create directory %s: %s"
+                               % (directory, err))
 
         data = {"time" : self.cur_time,
                 "schedule" : self.serialize()}
@@ -203,5 +204,6 @@ class schedule:
                     for (h,m,t) in l:
                         self.addEntry(d, h, m, t)
         except Exception as err:
-            logging.error("Could not load schedule from %s: %s" % (filename, err))
+            logging.error("Could not load schedule from %s: %s"
+                           % (filename, err))
 

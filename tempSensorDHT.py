@@ -6,19 +6,23 @@ def toFahrenheit(val):
 class tempSensor:
     def __init__(self, pin=25):
         self.pin = pin
+
         self.most_recent_temp = None
+        self.most_recent_humidity = None
 
-    def updateTemp(self):
-        return True
-
-    def getTemp(self):
+    def read(self):
+        temp = self.most_recent_temp
+        humidity = self.most_recent_humidity
         try:
             (humidity, temp) = dht.read_retry(dht.DHT22, self.pin)
         except:
-            return self.most_recent_temp
+            return self.most_recent_reading
 
-        if(temp != None):
+        if temp != None:
             temp = toFahrenheit(temp)
             self.most_recent_temp = temp
-        return temp
+        if humidity != None:
+            self.most_recent_humidity = humidity
+
+        return (temp, humidity)
 

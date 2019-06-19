@@ -57,7 +57,9 @@ class heaterControl():
                 runtime += cur_time - self.cur_start_time
             elif time.time() < self.cur_start_time:
                 # Most likely loaded a bad value
-                logging.error("Current heater start time %s greate then current time %s. Discarding value" % (self.cur_start_time, time.time()))
+                logging.error(
+ "Current heater start time %s greate then current time %s. Discarding value"
+                               % (self.cur_start_time, time.time()))
                 self.cur_start_time = None
         self.lock.release()
         return runtime
@@ -155,7 +157,8 @@ class heaterControl():
             try:
                 os.makedirs(directory)
             except Exception as err:
-                logging.error("Could not create directory %s: %s" % (directory, err))
+                logging.error("Could not create directory %s: %s"
+                               % (directory, err))
 
         self.lock.acquire()
         self.stashRuntime(cur_time = cur_time)
@@ -171,6 +174,7 @@ class heaterControl():
         except Exception as err:
             logging.error("Could not write file %s: %s" % (filename, err))
             success = False
+
         self.lock.release()
         return success
 
@@ -197,6 +201,8 @@ class heaterControl():
             self.cur_day = new_day
             self.runtimes = new_history
         except Exception as err:
-            logging.error("Could not load schedule from %s: %s" % (filename, err))
+            logging.error("Could not load schedule from %s: %s"
+                           % (filename, err))
+
         self.lock.release()
 

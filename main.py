@@ -8,7 +8,10 @@ import signal
 logging.basicConfig(level="INFO")
 
 app = Flask(__name__)
-thermostat = Thermostat(pref_file="prefs/thermostat.json", schedule_file="prefs/schedule.json", runhistory_file="prefs/history.json")
+thermostat = Thermostat(pref_file="prefs/thermostat.json",
+                        schedule_file="prefs/schedule.json",
+                        runhistory_file="prefs/usage.json",
+                        trackerdata_file="prefs/stats.csv")
 
 dayNames = ("Every Day", "Monday", "Tuesday", "Wednesday",
             "Thursday", "Friday", "Saturday", "Sunday")
@@ -27,8 +30,11 @@ def flaskThermostat():
                        for (h,m) in scheduleTimes]
     run_times = [(r//3600, (r%3600)//60, r%60) for r in
                  (int(t + .5) for t in thermostat.getPastRuntimes(7))]
+    
+    (temp, humidity) = thermostat.readSensor()
     templateData = {
-        "currentTemp" : round(thermostat.getCurrentTemp(), 2),
+        "currentTemp" : round(temp, 2),
+        "currentHumidity" : round(humidity, 2),
         "targetTemp" : thermostat.getTargetTemp(),
         "enabled" : ("Off", "On", "Force On")[thermostat.getEnabled()],
         "status" : round(100*thermostat.getStatus(), 2),
@@ -118,6 +124,7 @@ if __name__ == "__main__":
         thermostat.savePrefs()
         thermostat.saveRunHistory()
         thermostat.schedule.saveSchedule()
+        thermostat.tracker.save()
         logging.warning("Cleanup complete.")
         exit()
 
