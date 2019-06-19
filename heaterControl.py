@@ -192,7 +192,7 @@ class heaterControl():
 
             new_history = {new_day : 0.0}
             for (y, m, d, t) in input_data["history"]:
-                self.runtimes[datetime.date(y,m,d)] = t
+                new_history[datetime.date(y,m,d)] = t
 
             self.cur_day = new_day
             self.runtimes = new_history
