@@ -10,10 +10,12 @@ import threading
 import time
 
 class Thermostat:
-    def __init__(self, pref_file = None, schedule_file = None, runhistory_file = None):
+    def __init__(self, pref_file = None, schedule_file = None,
+                 runhistory_file = None, update_frequency = 60.0):
         self.lock = threading.Condition()
         self.thread = None
         self.next_check_time = time.time()
+        self.period = update_frequency
 
         self.enabled = 0
         self.pid = PID(1.0, 0.0, 0.0, setpoint=70, output_limits=(0.0, 1.0))
@@ -83,7 +85,8 @@ class Thermostat:
             cur_time = time.time()
             if cur_time > self.next_check_time:
                 self.sensor.updateTemp()
-                self.next_check_time += 60.0
+            while cur_time > self.next_check_time:
+                self.next_check_time += self.period
 
             scheduled_temp = self.schedule.checkForUpdate()
             if scheduled_temp != None:

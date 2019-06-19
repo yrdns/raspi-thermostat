@@ -17,8 +17,7 @@ class heaterControl():
         self.cur_start_time = None
 
         self.cur_day = datetime.date.today()
-        self.cur_runtime = 0.0
-        self.past_runtimes = {}
+        self.runtimes = {self.cur_day : 0.0}
         self.to_delete = False
         self.switch = heaterSwitch()
 
@@ -48,17 +47,17 @@ class heaterControl():
         return self.level
 
     def getCurRuntime(self, cur_time=None):
+        self.lock.acquire()
         if cur_time == None:
             cur_time = time.time()
 
-        self.lock.acquire()
-        runtime = self.cur_runtime
+        runtime = self.runtimes[self.cur_day]
         if self.cur_start_time != None:
-            if cur_time >= self.cur_start_time:
+            if cur_time > self.cur_start_time:
                 runtime += cur_time - self.cur_start_time
             elif time.time() < self.cur_start_time:
                 # Most likely loaded a bad value
-                logging.error("Current heater start time %s greate then current time %s. Discarding value" % (self.cur_start_time, cur_time))
+                logging.error("Current heater start time %s greate then current time %s. Discarding value" % (self.cur_start_time, time.time()))
                 self.cur_start_time = None
         self.lock.release()
         return runtime
@@ -72,19 +71,19 @@ class heaterControl():
         start_day -= datetime.timedelta(skip)
 
         if days == None:
-            days = (start_day - min(self.past_runtimes)).days + 1
+            days = (start_day - min(self.runtimes)).days + 1
         if days <= 0:
             return []
 
-        result = [self.past_runtimes.get(start_day -
-                    datetime.timedelta(days-1-i), 0.0) for i in range(days)]
+        result = [self.runtimes.get(start_day - datetime.timedelta(i), 0.0)
+                  for i in range(days)]
         self.lock.release()
         return result
 
     def serializeHistory(self):
         result = []
-        for k in sorted(self.past_runtimes):
-            result.append((k.year, k.month, k.day, self.past_runtimes[k]))
+        for k in sorted(self.runtimes, reverse = True):
+            result.append((k.year, k.month, k.day, self.runtimes[k]))
         return result
 
     def stashRuntime(self, cur_time = None):
@@ -93,10 +92,8 @@ class heaterControl():
 
         self.lock.acquire()
         if self.cur_start_time != None:
-            self.cur_runtime = self.getCurRuntime(cur_time=cur_time)
+            self.runtimes[self.cur_day] = self.getCurRuntime()
             self.cur_start_time = cur_time
-        self.past_runtimes[self.cur_day] = self.cur_runtime
-        self.cur_runtime = 0.0
         self.lock.release()
 
     def heaterThread(self):
@@ -107,8 +104,9 @@ class heaterControl():
             new_day = datetime.date.fromtimestamp(cur_time)
             if new_day != self.cur_day:
                 self.stashRuntime(cur_time)
+                self.runtimes[new_day] = 0.0
                 self.cur_day = new_day
-                self.saveHistory()
+                self.saveHistory(cur_time=cur_time)
 
             period_pos = (cur_time - start_time) % self.period
             period_threshold = self.period * self.level
@@ -128,7 +126,7 @@ class heaterControl():
                 self.switch.setState(0)
 
                 if self.cur_start_time != None:
-                    self.cur_runtime = self.getCurRuntime()
+                    self.runtimes[self.cur_day] = self.getCurRuntime()
                     self.cur_start_time = None
                     self.saveHistory()
 
@@ -145,7 +143,7 @@ class heaterControl():
     def lookupState(self):
         return self.switch.setState()
 
-    def saveHistory(self, filename=None):
+    def saveHistory(self, filename=None, cur_time=None):
         if filename == None:
             filename = self.save_file
         if not filename:
@@ -160,13 +158,11 @@ class heaterControl():
                 logging.error("Could not create directory %s: %s" % (directory, err))
 
         self.lock.acquire()
-        cur_runtime = self.cur_runtime
-        cur_time = time.time()
-        if self.cur_start_time != None and cur_time > self.cur_start_time:
-            cur_runtime = cur_runtime + (cur_time - self.cur_start_time)
+        self.stashRuntime(cur_time = cur_time)
 
-        data = {"cur_day" : (self.cur_day.year, self.cur_day.month, self.cur_day.day),
-                "cur_runtime" : self.getCurRuntime(),
+        data = {"cur_day" : (self.cur_day.year,
+                             self.cur_day.month,
+                             self.cur_day.day),
                 "history" : self.serializeHistory()}
         try:
             fp = open(filename, "w")
@@ -191,18 +187,15 @@ class heaterControl():
             fp.close()
 
             new_day = None
-            new_runtime = None
-            new_history = {}
-
             (y, m, d) = input_data["cur_day"]
             new_day = datetime.date(y, m, d)
-            new_runtime = input_data["cur_runtime"]
+
+            new_history = {new_day : 0.0}
             for (y, m, d, t) in input_data["history"]:
-                self.past_runtimes[datetime.date(y,m,d)] = t
+                self.runtimes[datetime.date(y,m,d)] = t
 
             self.cur_day = new_day
-            self.cur_runtime = new_runtime
-            self.past_runtimes = new_history
+            self.runtimes = new_history
         except Exception as err:
             logging.error("Could not load schedule from %s: %s" % (filename, err))
         self.lock.release()

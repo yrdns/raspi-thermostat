@@ -25,13 +25,14 @@ def flaskThermostat():
                                           "AM" if h<12 else "PM"),
                       "%02d%02d" % (h, m))
                        for (h,m) in scheduleTimes]
-    run_time = int(thermostat.getDayRuntime() + .5)
+    run_times = [(r//3600, (r%3600)//60, r%60) for r in
+                 (int(t + .5) for t in thermostat.getPastRuntimes(7))]
     templateData = {
         "currentTemp" : round(thermostat.getCurrentTemp(), 2),
         "targetTemp" : thermostat.getTargetTemp(),
         "enabled" : ("Off", "On", "Force On")[thermostat.getEnabled()],
         "status" : round(100*thermostat.getStatus(), 2),
-        "runtime" : (run_time//3600, (run_time%3600)//60, run_time%60),
+        "runtimes" : run_times,
         "Kp" : Kp, "Ki" : Ki, "Kd" : Kd,
         "dayNames" : dayNames,
         "scheduleTimes" : scheduleTimes,
