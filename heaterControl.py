@@ -149,7 +149,6 @@ class heaterControl():
             filename = self.save_file
         if not filename:
             return False
-        filename = "prefs/use_history.csv"
 
         success = True
         directory = os.path.dirname(filename)
@@ -182,20 +181,18 @@ class heaterControl():
 
         self.lock.acquire()
         try:
-            fp = open(filename, "r")
-            input_data = json.load(fp)
+            new_history = {}
+            new_day = None
+
+            fp = open(filename, "r", newline='')
+            reader = csv.reader(fp, delimiter=' ')
+            for (y, m, d, t) in reader:
+                new_history[datetime.date(int(y), int(m), int(d))] = t
+            new_day = max(new_history)
             fp.close()
 
-            new_day = None
-            (y, m, d) = input_data["cur_day"]
-            new_day = datetime.date(y, m, d)
-
-            new_history = {new_day : 0.0}
-            for (y, m, d, t) in input_data["history"]:
-                new_history[datetime.date(y,m,d)] = t
-
-            self.cur_day = new_day
             self.runtimes = new_history
+            self.cur_day = new_day
         except Exception as err:
             logging.error("Could not load schedule from %s: %s"
                            % (filename, err))

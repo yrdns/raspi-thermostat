@@ -10,7 +10,7 @@ logging.basicConfig(level="INFO")
 app = Flask(__name__)
 thermostat = Thermostat(pref_file="prefs/thermostat.json",
                         schedule_file="prefs/schedule.json",
-                        runhistory_file="prefs/usage.json",
+                        runhistory_file="prefs/usage_history.csv",
                         trackerdata_file="prefs/stats.csv")
 
 dayNames = ("Every Day", "Monday", "Tuesday", "Wednesday",
