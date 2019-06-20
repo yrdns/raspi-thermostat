@@ -187,7 +187,7 @@ class heaterControl():
             fp = open(filename, "r", newline='')
             reader = csv.reader(fp, delimiter=' ')
             for (y, m, d, t) in reader:
-                new_history[datetime.date(int(y), int(m), int(d))] = t
+                new_history[datetime.date(int(y),int(m),int(d))] = float(t)
             new_day = max(new_history)
             fp.close()
 
