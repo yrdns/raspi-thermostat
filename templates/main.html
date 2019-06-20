@@ -24,8 +24,8 @@ input[type=number] {
     <div>
     Status: {{ enabled }} <br>
     Current Temperature: {{ currentTemp }}&deg;F <br>
-    Current Humidity: {{ currentHumidity }}&percnt; <br>
     Target Temperature: {{ targetTemp }}&deg;F <br>
+    Current Humidity: {{ currentHumidity }}&percnt; <br>
     Current On Value: {{ status }}% <br>
     Yesterday's Runtime: {{ "%02dh:%02dm:%02ds" % runtimes[1] }} <br>
     Today's Runtime: {{ "%02dh:%02dm:%02ds" % runtimes[0] }} <br>

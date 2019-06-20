@@ -2,7 +2,6 @@ from heaterSwitchGPIO import heaterSwitch
 
 import csv
 import datetime
-import json
 import logging
 import os
 import threading 
