@@ -1,5 +1,6 @@
 from heaterSwitchGPIO import heaterSwitch
 
+import csv
 import datetime
 import json
 import logging
@@ -83,10 +84,8 @@ class heaterControl():
         return result
 
     def serializeHistory(self):
-        result = []
-        for k in sorted(self.runtimes, reverse = True):
-            result.append((k.year, k.month, k.day, self.runtimes[k]))
-        return result
+        return ((k.year, k.month, k.day, self.runtimes[k])
+                for k in sorted(self.runtimes, reverse = True))
 
     def stashRuntime(self, cur_time = None):
         if cur_time == None:
@@ -150,6 +149,7 @@ class heaterControl():
             filename = self.save_file
         if not filename:
             return False
+        filename = "prefs/use_history.csv"
 
         success = True
         directory = os.path.dirname(filename)
@@ -162,14 +162,10 @@ class heaterControl():
 
         self.lock.acquire()
         self.stashRuntime(cur_time = cur_time)
-
-        data = {"cur_day" : (self.cur_day.year,
-                             self.cur_day.month,
-                             self.cur_day.day),
-                "history" : self.serializeHistory()}
         try:
-            fp = open(filename, "w")
-            json.dump(data, fp)
+            fp = open(filename, "w", newline='')
+            writer = csv.writer(fp, delimiter=' ', quoting=csv.QUOTE_MINIMAL)
+            writer.writerows(self.serializeHistory())
             fp.close()
         except Exception as err:
             logging.error("Could not write file %s: %s" % (filename, err))
