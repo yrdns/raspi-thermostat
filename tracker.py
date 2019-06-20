@@ -1,4 +1,5 @@
-from heapq import heappush, heappop, heappushpop
+from collections import deque
+from itertools import islice
 
 import csv
 import logging
@@ -12,13 +13,11 @@ class thermostatStatTracker:
         self.lock = threading.RLock()
 
         self.age_limit = age_limit
-        self.entry_limit = entry_limit
+        self.data = deque(maxlen=entry_limit)
 
         self.save_file = save_file
         self.last_savetime = time.time()
-        self.autosave_frequency = None
-        self.data = {}
-        self.data_exp = []
+        self.autosave_frequency = autosave_frequency
 
         if save_file:
             self.load()
@@ -26,8 +25,18 @@ class thermostatStatTracker:
     def record(self, cur_time, v1, v2, v3):
         self.lock.acquire()
 
-        self.data[cur_time] = (v1, v2, v3)
-        heappush(self.data_exp, cur_time)
+        entry = (cur_time, v1, v2, v3)
+        if cur_time < self.data[-1][0]:
+            logging.warning("Queue time %f greater then current time %f"
+                             % (self.data[-1][0], cur_time))
+            split = [self.data.pop()]
+            while cur_time < self.data[-1][0]:
+                split.append(self.data.pop)
+
+            self.data.append(entry)
+            self.data.extend(reversed(split))
+        else:
+            self.data.append(entry)
 
         self.prune(cur_time)
 
@@ -37,35 +46,34 @@ class thermostatStatTracker:
 
         self.lock.release()
 
-    def getData(self, time_range, cur_time = None, skip = None):
-        if skip == None:
-            skip = 0
+    def getData(self, time_range, start_time = None, skip = None):
         self.lock.acquire()
-        if cur_time == None:
-            cur_time = time.time()
+        if start_time == None:
+            start_time = self.data[-1][0]
+        if skip != None:
+            start_time -= skip
+        end_time = start_time - time_range
 
-        high_time = cur_time - skip
-        low_time = high_time - time_range
-        data = [(t, self.data[t]) for t in sorted((t for t in self.data
-                                                   if (t <= high_time and
-                                                       t >= low_time)))]
+        result = []
+        # This SHOULD be in place, which is important as we intend to only
+        # partially exhaust iterator:
+        for e in reversed(self.data):
+            if e[0] < end_time:
+                break
+            if e[0] <= start_time:
+                result.append(e)
 
         self.lock.release()
-        return data
+        return result
 
-    def prune(self, cur_time = None, age_limit = None, entry_limit = None):
+    def prune(self, cur_time = None, age_limit = None):
         if cur_time == None:
             cur_time = time.time()
         if age_limit == None:
             age_limit = self.age_limit
-        if entry_limit == None:
-            entry_limit = self.entry_limit
 
-        while ((age_limit != None and
-                self.data_exp[0] < cur_time - age_limit) or
-               (entry_limit != None and
-                len(self.data) > entry_limit)):
-            self.data.pop(heappop(self.data_exp))
+        while age_limit != None and self.data[0][0] < cur_time - age_limit:
+            self.data.popleft()
 
     def save(self, filename = None, cur_time = None):
         if filename == None:
@@ -85,14 +93,13 @@ class thermostatStatTracker:
                 logging.error("Could not create directory %s: %s"
                                % (directory, err))
         self.lock.acquire()
-        self.data_exp.sort()
 
         success = True
         try:
             fp = open(filename, "w", newline='')
             writer = csv.writer(fp, delimiter=' ', quoting=csv.QUOTE_MINIMAL)
-            for t in self.data_exp:
-                writer.writerow([t] + list(self.data[t]))
+
+            writer.writerows(self.data)
             fp.close()
         except Exception as err:
             logging.error("Could not write file %s: %s" % (filename, err))
@@ -112,27 +119,23 @@ class thermostatStatTracker:
             cur_time = time.time()
         age_cutoff = (cur_time - self.age_limit
                       if self.age_limit != None else 0)
-        new_data = {}
-        new_data_exp = []
+        new_data = []
         try:
             fp = open(filename, "r", newline='')
             reader = csv.reader(fp, delimiter=' ')
             for row in reader:
                 (t, v1, v2, v3) = (float(v) for v in row)
                 if t >= age_cutoff:
-                    new_data[t] = (v1, v2, v3)
-                    if (self.entry_limit != None and
-                          len(new_data) > self.entry_limit):
-                        new_data.pop(heappushpop(new_data_exp, t))
-                    else:
-                        heappush(new_data_exp, t)
+                    new_data.append((t, v1, v2, v3))
             fp.close()
 
-            self.data = new_data
-            self.data_exp = new_data_exp
-            self.prune()
+            new_data.sort()
+            self.data = deque(new_data, self.data.maxlen)
+            del new_data
+
         except Exception as err:
             logging.error("Could not load tracker history from %s: %s"
                            % (filename, err))
+
         self.lock.release()
 
