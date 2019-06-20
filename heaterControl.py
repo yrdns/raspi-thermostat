@@ -85,7 +85,7 @@ class heaterControl():
 
     def serializeHistory(self):
         return ((k.year, k.month, k.day, self.runtimes[k])
-                for k in sorted(self.runtimes, reverse = True))
+                for k in sorted(self.runtimes))
 
     def stashRuntime(self, cur_time = None):
         if cur_time == None:
