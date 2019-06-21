@@ -12,14 +12,7 @@ custom_chars = [# Degree symbol
                ]
 
 class displayControl():
-    def __init__(self, thermostat, up_pin=None, down_pin=None,
-                 update_frequency = 1.0):
-        self.lock = threading.Condition()
-        self.thread = None
-        self.period = update_frequency
-
-        self.thermostat = thermostat
-
+    def __init__(self, thermostat, up_pin=None, down_pin=None):
         self.display = lcd()
         self.display.lcd_load_custom_chars(
             [# Degree symbol
@@ -31,53 +24,21 @@ class displayControl():
         self.down_pin = None
         if up_pin != None:
             self.up_pin = Button(up_pin)
-            self.up_ping.when_pressed = self.increaseTemp
+            self.up_ping.when_pressed = thermostat.increaseTemp
         if down_pin != None:
             self.down_pin = Button(down_pin)
-            self.down_pin.when_pressed = self.decreaseTemp
-
-        self.to_delete = False
-        self.thread = threading.Thread(target=self.displayThread)
-        self.thread.daemon = True
-        self.thread.start()
+            self.down_pin.when_pressed = thermostat.decreaseTemp
 
     def __del__(self):
-        self.lock.acquire()
-        self.to_delete = True
-        while (self.thread and not self.thread.join(0) and
-               self.thread.is_alive()):
-            self.lock.notify()
-            self.lock.wait()
-        self.lock.release()
+        self.display.lcd_clear()
 
-    def increaseTemp(self):
-        self.thermostat.setTargetTemp(self.thermostat.getTargetTemp() + 1)
-
-        self.thermostat.updateState()
-
-    def decreaseTemp(self):
-        self.thermostat.setTargetTemp(self.thermostat.setTargetTemp() - 1)
-        self.thermosat.updateState()
-
-    def displayThread(self):
-        self.lock.acquire()
-        try:
-            while not self.to_delete:
-                self.updateDisplay()
-                self.lock.wait(self.period - (time.time() % self.period))
-            self.lock.notify()
-            self.lock.release()
-        finally:
-            # What happens if we catch excpetion but hold the lock?
-            self.display.lcd_clear()
-
-    def updateDisplay(self):
-        (temp, humidity) = self.thermostat.readSensor()
-        runtime = int(self.thermostat.getTodaysRuntime() + .5)
+    def updateDisplay(self, temp, target, status, runtime):
+        status *= 100
+        runtime = int(runtime + .5)
 
         l1 = "     Temp:%7.2f"    % temp
-        l2 = "   Target:%7.2f"    % self.thermostat.getTargetTemp()
-        l3 = " On Value:%7.2f %%" % (100 * self.thermostat.getStatus())
+        l2 = "   Target:%7.2f"    % target
+        l3 = " On Value:%7.2f %%" % status
         l4 = "  Runtime:%3d:%02d:%02d" % (runtime // 3600,
                                           (runtime % 3600)//60,
                                           runtime % 60)

@@ -1,3 +1,4 @@
+from display import displayControl
 from heaterControl import heaterControl
 from schedule import schedule
 from simple_pid import PID
@@ -32,6 +33,7 @@ class Thermostat:
 
         self.sensor = tempSensor()
         self.control = heaterControl(save_file=runhistory_file)
+        self.display = displayControl(self)
 
         self.to_delete = False
         self.thread = threading.Thread(target=self.thermostatThread)
@@ -59,11 +61,16 @@ class Thermostat:
                       % (self.pid.setpoint, val))
         self.pid.setpoint = val
 
+    def increaseTemp(self, amount=1.0):
+        self.pid.setpoint += amount
+        self.updateState()
+
+    def decreaseTemp(self, amount=1.0):
+        self.pid.setpoint -= amount
+        self.updateState()
+
     def getStatus(self):
         return self.control.getLevel()
-
-    def getTodaysRuntime(self):
-        return self.control.getCurRuntime()
 
     def getPastRuntimes(self, days=None, skip=None, start_day=None):
         return self.control.getPastRuntimes(days, skip, start_day)
@@ -108,6 +115,9 @@ class Thermostat:
             self.control.setLevel(status)
 
             self.tracker.record(cur_time, temp, humidity, status)
+
+            self.display.updateDisplay(temp, self.pid.setpoint, status,
+                                       self.control.getCurRuntime())
 
             if scheduled_temp:
                 self.savePrefs()
