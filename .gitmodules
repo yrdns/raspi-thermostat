@@ -1,0 +1,3 @@
+[submodule "RPi_I2C_driver"]
+	path = RPi_I2C_driver
+	url = https://gist.github.com/cc863375a6e19dce359d.git
