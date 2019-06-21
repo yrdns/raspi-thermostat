@@ -32,8 +32,8 @@ class Thermostat:
 
         self.sensor = tempSensor()
         self.control = heaterControl(save_file=runhistory_file)
-        self.to_delete = False
 
+        self.to_delete = False
         self.thread = threading.Thread(target=self.thermostatThread)
         self.thread.daemon = True
         self.thread.start()
@@ -41,10 +41,12 @@ class Thermostat:
     def __del__(self):
         self.lock.acquire()
         self.to_delete = True
-        while self.thread and self.thread.is_alive():
+
+        # Abuses evaluation order to join right before the is_alive check
+        while (self.thread and not self.thread.join(0) and
+               self.thread.is_alive()):
             self.lock.notify()
             self.lock.wait()
-            self.thread.join(0)
         self.lock.release()
 
     def getTargetTemp(self):
@@ -60,7 +62,7 @@ class Thermostat:
     def getStatus(self):
         return self.control.getLevel()
 
-    def getDayRuntime(self):
+    def getTodaysRuntime(self):
         return self.control.getCurRuntime()
 
     def getPastRuntimes(self, days=None, skip=None, start_day=None):

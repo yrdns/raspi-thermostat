@@ -1,3 +1,4 @@
+from display import displayControl
 from thermostat import Thermostat
 
 from flask import Flask, render_template, request, redirect
@@ -12,6 +13,7 @@ thermostat = Thermostat(pref_file="prefs/thermostat.json",
                         schedule_file="prefs/schedule.json",
                         runhistory_file="prefs/usage_history.csv",
                         trackerdata_file="prefs/stats.csv")
+display = displayControl(thermostat)
 
 dayNames = ("Every Day", "Monday", "Tuesday", "Wednesday",
             "Thursday", "Friday", "Saturday", "Sunday")

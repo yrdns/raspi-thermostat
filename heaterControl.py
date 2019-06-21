@@ -18,12 +18,12 @@ class heaterControl():
 
         self.cur_day = datetime.date.today()
         self.runtimes = {self.cur_day : 0.0}
-        self.to_delete = False
         self.switch = heaterSwitch()
 
         self.save_file = save_file
         self.loadHistory()
 
+        self.to_delete = False
         self.thread = threading.Thread(target=self.heaterThread)
         self.thread.daemon = True
         self.thread.start()
@@ -31,10 +31,10 @@ class heaterControl():
     def __del__(self):
         self.lock.acquire()
         self.to_delete = True
-        while self.thread and self.thread.is_alive():
+        while (self.thread and not self.thread.join(0) and
+               self.thread.is_alive()):
             self.lock.notify()
             self.lock.wait()
-            self.thead.join(0)
         self.lock.release()
 
     def setLevel(self, val):
