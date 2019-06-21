@@ -6,18 +6,14 @@ import logging
 import threading
 import time
 
-custom_chars = [# Degree symbol
-                [0b00110, 0b01001, 0b01001, 0b00110,
-                 0b00000, 0b00000, 0b00000, 0b00000],
-               ]
-
 class displayControl():
     def __init__(self, thermostat, up_pin=None, down_pin=None):
         self.display = lcd()
         self.display.lcd_load_custom_chars(
-            [# Degree symbol
-                [0b00110, 0b01001, 0b01001, 0b00110,
-                 0b00000, 0b00000, 0b00000, 0b00000],
+            [ # Degree symbol
+             [0x02, 0x05, 0x02, 0x00, 0x00, 0x00, 0x00, 0x00],
+              # Alternate colon
+             [0x00, 0x00, 0x04, 0x00, 0x00, 0x04, 0x00, 0x00],
             ])
 
         self.up_pin = None
@@ -36,12 +32,12 @@ class displayControl():
         status *= 100
         runtime = int(runtime + .5)
 
-        l1 = "     Temp:%7.2f"    % temp
-        l2 = "   Target:%7.2f"    % target
-        l3 = " On Value:%7.2f %%" % status
-        l4 = "  Runtime:%3d:%02d:%02d" % (runtime // 3600,
-                                          (runtime % 3600)//60,
-                                          runtime % 60)
+        l1 = "     Temp:%7.2f"   % temp
+        l2 = "   Target:%7.2f"   % target
+        l3 = " On Value:%7.2f%%" % status
+        l4 = ("  Runtime:%3d-%02d-%02d" % (runtime // 3600,
+                                           (runtime % 3600) // 60,
+                                           runtime % 60)).split("-")
 
         #First Line
         self.display.lcd_display_string(l1, 1)
@@ -57,5 +53,8 @@ class displayControl():
         self.display.lcd_display_string(l3, 3)
 
         # Fourth Line
-        self.display.lcd_display_string(l4, 4)
+        self.display.lcd_display_string(l4[0], 4)
+        for s in l4[1:]:
+            self.display.lcd_write_char(1) # Colon (alternate)
+            self.display.lcd_display_string(s, 0)
 
