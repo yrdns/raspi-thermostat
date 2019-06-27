@@ -4,6 +4,17 @@ from flask import Flask, render_template, request, redirect
 import logging
 import re
 import signal
+import time
+
+def format_runtime(t):
+    t = int(t+.5)
+    return "%02dh:%02dm:%02ds" % (t//3600, (t%3600)//60, t%60)
+
+def format_date(d):
+    return "%d-%d" % (d[1], d[2])
+
+def format_datetime_short(t):
+    return time.strftime("%Y%m%dT%H%M%S", time.localtime(t))
 
 logging.basicConfig(level="INFO")
 
@@ -13,8 +24,8 @@ thermostat = Thermostat(pref_file="prefs/thermostat.json",
                         runhistory_file="prefs/usage_history.csv",
                         trackerdata_file="prefs/stats.csv")
 
-dayNames = ("Every Day", "Monday", "Tuesday", "Wednesday",
-            "Thursday", "Friday", "Saturday", "Sunday")
+dayNames = ["Every Day", "Monday", "Tuesday", "Wednesday",
+            "Thursday", "Friday", "Saturday", "Sunday"]
 timeCommandRE = re.compile("(deleteTime|ignoreTime)([0-7])([0-2][0-9])([0-5][0-9])")
 
 @app.route("/thermostat", methods=["GET"])
@@ -28,9 +39,11 @@ def flaskThermostat():
                                           "AM" if h<12 else "PM"),
                       "%02d%02d" % (h, m))
                        for (h,m) in scheduleTimes]
-    run_times = [(r//3600, (r%3600)//60, r%60) for r in
-                 (int(t + .5) for t in thermostat.getPastRuntimes(7))]
-    
+    run_times = [(format_date(d), t) for (d, t) in
+                  reversed(thermostat.getPastRuntimes(7))]
+    temp_history = [(format_datetime_short(t), v1, v2, v3)
+                    for (t, v1, v2, v3) in thermostat.getSensorHistory(24*60*60)]
+
     (temp, humidity) = thermostat.readSensor()
     templateData = {
         "currentTemp" : round(temp, 2),
@@ -38,7 +51,9 @@ def flaskThermostat():
         "targetTemp" : thermostat.getTargetTemp(),
         "enabled" : ("Off", "On", "Force On")[thermostat.getEnabled()],
         "status" : round(100*thermostat.getStatus(), 2),
-        "runtimes" : run_times,
+        "todaysRuntime" : format_runtime(run_times[-1][1]),
+        "usageHistory" : run_times,
+        "tempHistory" : temp_history,
         "Kp" : Kp, "Ki" : Ki, "Kd" : Kd,
         "dayNames" : dayNames,
         "scheduleTimes" : scheduleTimes,
@@ -122,9 +137,9 @@ if __name__ == "__main__":
     def graceful_exit(signum, frame):
         logging.warning("Received signal %d, exiting gracefully...", signum)
         thermostat.savePrefs()
-        thermostat.saveRunHistory()
         thermostat.schedule.saveSchedule()
-        thermostat.tracker.save()
+        thermostat.saveRunHistory()
+        thermostat.saveSensorHistory()
         logging.warning("Cleanup complete.")
         exit()
 

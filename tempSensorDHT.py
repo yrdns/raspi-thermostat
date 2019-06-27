@@ -1,5 +1,7 @@
 import Adafruit_DHT as dht
 
+import logging
+
 def toFahrenheit(val):
     return 1.8*val + 32
 
@@ -15,7 +17,10 @@ class tempSensor:
         humidity = self.most_recent_humidity
         try:
             (humidity, temp) = dht.read_retry(dht.DHT22, self.pin)
-        except:
+            humidity /= 100
+        except Exception as err:
+            logging.warning("Couldn't read sensor, returning last known value %s. %s"
+                             % (self.most_recent_reading, err))
             return self.most_recent_reading
 
         if temp != None:

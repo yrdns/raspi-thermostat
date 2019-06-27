@@ -77,8 +77,9 @@ class heaterControl():
         if days <= 0:
             return []
 
-        result = [self.runtimes.get(start_day - datetime.timedelta(i), 0.0)
-                  for i in range(days)]
+        result = [((d.year, d.month, d.day), self.runtimes.get(d, 0.0))
+                  for d in (start_day - datetime.timedelta(i)
+                            for i in range(days))]
         self.lock.release()
         return result
 

@@ -46,14 +46,20 @@ class thermostatStatTracker:
 
         self.lock.release()
 
-    def getData(self, time_range, start_time = None, skip = None):
+    def getData(self, time_range, start_time = None, skip = None, stride = None, bin_count = None):
         self.lock.acquire()
         if start_time == None:
             start_time = self.data[-1][0]
         if skip != None:
             start_time -= skip
         end_time = start_time - time_range
+        
+        if stride == None and bin_count != None:
+            stride = time_range / bin_count
 
+        cur_bin = start_time
+        cur_acc = [0,0,0]
+        cur_count = 0
         result = []
         # This SHOULD be in place, which is important as we intend to only
         # partially exhaust iterator:
@@ -61,7 +67,23 @@ class thermostatStatTracker:
             if e[0] < end_time:
                 break
             if e[0] <= start_time:
-                result.append(e)
+                if stride == None:
+                    result.append(e)
+                else:
+                    while cur_bin - e[0] >= stride:
+                        if cur_count > 0:
+                            cur_acc[0] /= cur_count
+                            cur_acc[1] /= cur_count
+                            cur_acc[2] /= cur_count
+                        result.append((cur_bin, cur_acc[0], cur_acc[1], cur_acc[2]))
+                        cur_acc = [0,0,0]
+                        cur_count = 0
+                        cur_bin -= stride
+
+                    cur_acc[0] += e[1]
+                    cur_acc[1] += e[2]
+                    cur_acc[2] += e[3]
+                    cur_count += 1
 
         self.lock.release()
         return result
