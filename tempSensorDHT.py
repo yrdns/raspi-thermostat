@@ -26,7 +26,7 @@ class tempSensor:
                                 err))
             return (self.most_recent_temp, self.most_recent_humidity)
 
-        if temp == None or Humidity == None:
+        if temp == None or humidity == None:
             logging.warning(
  "Failed to read sensor, returning last known values (%s, %s)."
                              % (self.most_recent_temp,
