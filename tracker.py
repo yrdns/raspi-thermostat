@@ -53,7 +53,7 @@ class thermostatStatTracker:
         if skip != None:
             start_time -= skip
         end_time = start_time - time_range
-        
+
         if stride == None and bin_count != None:
             stride = time_range / bin_count
 
@@ -145,10 +145,23 @@ class thermostatStatTracker:
         try:
             fp = open(filename, "r", newline='')
             reader = csv.reader(fp, delimiter=' ')
+
+            error_count = 0
             for row in reader:
-                (t, v1, v2, v3) = (float(v) for v in row)
-                if t >= age_cutoff:
-                    new_data.append((t, v1, v2, v3))
+                try:
+                    (t, v1, v2, v3) = (float(v) for v in row)
+                    if t >= age_cutoff:
+                        new_data.append((t, v1, v2, v3))
+                except ValueError as err:
+                    if error_count == 0:
+                        logging.error(
+                            "Bad tracker csv line < %s > in file \"%s\""
+                             % (row, filename))
+                        logging.error(
+                            "Skipping line, suppressing further errors")
+                        error_count += 1
+            if error_count > 0:
+                logging.Error("%d bad lines found")
             fp.close()
 
             new_data.sort()
