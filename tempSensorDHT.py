@@ -13,20 +13,29 @@ class tempSensor:
         self.most_recent_humidity = None
 
     def read(self):
-        temp = self.most_recent_temp
-        humidity = self.most_recent_humidity
+        temp = None
+        humidity = None
         try:
             (humidity, temp) = dht.read_retry(dht.DHT22, self.pin)
             humidity /= 100
         except Exception as err:
-            logging.warning("Couldn't read sensor, returning last known value %s. %s"
-                             % (self.most_recent_reading, err))
-            return self.most_recent_reading
+            logging.warning(
+                "Couldn't read sensor, returning last known values (%s, %s). %s"
+                 % (self.most_recent_temp,
+                    self.most_recent_humidity,
+                    err))
+            return (self.most_recent_temp, self.most_recent_humidity)
 
-        if temp != None:
+        if temp == None or Humidity == None:
+            logging.warning(
+                "Failed to read sensor, returning last known values (%s, %s)."
+                 % (self.most_recent_temp,
+                    self.most_recent_humidity))
+            temp = self.most_recent_temp
+            humidity = self.most_recent_humidity
+        else:
             temp = toFahrenheit(temp)
             self.most_recent_temp = temp
-        if humidity != None:
             self.most_recent_humidity = humidity
 
         return (temp, humidity)

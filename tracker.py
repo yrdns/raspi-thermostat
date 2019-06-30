@@ -53,7 +53,7 @@ class thermostatStatTracker:
         if skip != None:
             start_time -= skip
         end_time = start_time - time_range
-        
+
         if stride == None and bin_count != None:
             stride = time_range / bin_count
 
