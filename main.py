@@ -42,7 +42,7 @@ def flaskThermostat():
     run_times = [(format_date(d), t) for (d, t) in
                   reversed(thermostat.getPastRuntimes(7))]
     temp_history = [(format_datetime_short(t), v1, v2, v3)
-                    for (t, v1, v2, v3) in thermostat.getSensorHistory(24*60*60)]
+                    for (t, v1, v2, v3) in thermostat.getSensorHistory(7*24*60*60)]
 
     (temp, humidity) = thermostat.readSensor()
     templateData = {
