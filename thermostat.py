@@ -32,8 +32,13 @@ class Thermostat:
         self.loadPrefs()
 
         self.sensor = tempSensor()
-        self.control = heaterControl(save_file=runhistory_file)
+        (temp, humidity) = self.sensor.read()
+
         self.display = displayControl(self)
+        if self.display != None:
+            self.display.updateDisplay(temp, self.pid.setpoint, 0.0)
+        self.control = heaterControl(save_file = runhistory_file,
+                                     display = self.display)
 
         self.to_delete = False
         self.thread = threading.Thread(target=self.thermostatThread)
@@ -124,8 +129,8 @@ class Thermostat:
 
             self.tracker.record(cur_time, temp, humidity, status)
 
-            self.display.updateDisplay(temp, self.pid.setpoint, status,
-                                       self.control.getCurRuntime())
+            if self.display != None:
+                self.display.updateDisplay(temp, self.pid.setpoint, status)
 
             if scheduled_temp:
                 self.savePrefs()

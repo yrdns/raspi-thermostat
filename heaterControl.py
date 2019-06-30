@@ -4,17 +4,18 @@ import csv
 import datetime
 import logging
 import os
-import threading 
+import threading
 import time
 
 class heaterControl():
-    def __init__(self, period = 60.0, save_file=None):
+    def __init__(self, period = 60.0, save_file=None, display=None):
         self.lock = threading.Condition()
         self.thread = None
 
         self.period = period
         self.level = 0.0
         self.cur_start_time = None
+        self.display = display
 
         self.cur_day = datetime.date.today()
         self.runtimes = {self.cur_day : 0.0}
@@ -22,6 +23,8 @@ class heaterControl():
 
         self.save_file = save_file
         self.loadHistory()
+        if self.display != None:
+            self.display.stopCounter(self.getCurRuntime())
 
         self.to_delete = False
         self.thread = threading.Thread(target=self.heaterThread)
@@ -56,7 +59,7 @@ class heaterControl():
             if cur_time > self.cur_start_time:
                 runtime += cur_time - self.cur_start_time
             elif time.time() < self.cur_start_time:
-                # Most likely loaded a bad value
+                # Shouldn't ever happen unless time.time() fails
                 logging.error(
  "Current heater start time %s greate then current time %s. Discarding value"
                                % (self.cur_start_time, time.time()))
@@ -114,6 +117,9 @@ class heaterControl():
 
             if period_pos < period_threshold:
                 if self.cur_start_time == None:
+                    self.display.startCounter(self.getCurRuntime(),
+                                              cur_time)
+
                     self.cur_start_time = cur_time
                 else:
                     self.saveHistory()
@@ -129,6 +135,8 @@ class heaterControl():
                 if self.cur_start_time != None:
                     self.runtimes[self.cur_day] = self.getCurRuntime()
                     self.cur_start_time = None
+
+                    self.display.stopCounter(self.getCurRuntime())
                     self.saveHistory()
 
                 cur_time = time.time()
