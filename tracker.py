@@ -9,11 +9,14 @@ import threading
 
 class thermostatStatTracker:
     def __init__(self, save_file = None, autosave_frequency = None,
-                 age_limit = None, entry_limit = None):
+                 age_limit = None, entry_limit = None,
+                 temp_noise_filter=10.0/60, humidity_noise_filter=0.1/60):
         self.lock = threading.RLock()
 
         self.age_limit = age_limit
         self.data = deque(maxlen=entry_limit)
+        self.noise_filter_temp = temp_noise_filter
+        self.noise_filter_humidity = humidity_noise_filter
 
         self.save_file = save_file
         self.last_savetime = time.time()
@@ -24,19 +27,39 @@ class thermostatStatTracker:
 
     def record(self, cur_time, v1, v2, v3):
         self.lock.acquire()
+        success = True
 
+        split = None
         entry = (cur_time, v1, v2, v3)
-        if cur_time < self.data[-1][0]:
-            logging.warning("Queue time %f greater then current time %f"
-                             % (self.data[-1][0], cur_time))
-            split = [self.data.pop()]
-            while cur_time < self.data[-1][0]:
-                split.append(self.data.pop)
+        dtmp = 0.0
+        dhum = 0.0
+        if self.data:
+            if cur_time < self.data[-1][0]:
+                logging.warning("Queue time %f greater then current time %f"
+                                 % (self.data[-1][0], cur_time))
+                split = [self.data.pop()]
+                while cur_time < self.data[-1][0]:
+                    split.append(self.data.pop())
 
-            self.data.append(entry)
-            self.data.extend(reversed(split))
+            # Sample d/dt temp
+            dtmp = (v1-self.data[-1][1])/(cur_time-self.data[-1][0])
+            # Sample d/dt humidity
+            dhum = (v2-self.data[-1][2])/(cur_time-self.data[-1][0])
+
+        if abs(dtmp) > self.noise_filter_temp:
+            logging.warning(
+  "Change for temperature on entry %s from record %s is greater than threshold, d/dt = %f"
+                             % (entry, self.data[-1], dtmp))
+            success = False
+        elif abs(dhum) > self.noise_filter_humidity:
+            logging.warning(
+  "Change for humidity on entry %s from record %s is greater than threshold, d/dt = %f"
+                             % (entry, self.data[-1], dhum))
+            success = False
         else:
             self.data.append(entry)
+            if split:
+                self.data.extend(reversed(split))
 
         self.prune(cur_time)
 
@@ -45,6 +68,7 @@ class thermostatStatTracker:
             self.save()
 
         self.lock.release()
+        return success
 
     def getData(self, time_range, start_time = None,
                 skip = None, stride = None, bin_count = None):
@@ -143,17 +167,19 @@ class thermostatStatTracker:
             cur_time = time.time()
         age_cutoff = (cur_time - self.age_limit
                       if self.age_limit != None else 0)
-        new_data = []
+
+        old_data = self.data
         try:
             fp = open(filename, "r", newline='')
             reader = csv.reader(fp, delimiter=' ')
 
+            self.data = deque(maxlen=self.data.maxlen)
             error_count = 0
             for row in reader:
                 try:
                     (t, v1, v2, v3) = (float(v) for v in row)
                     if t >= age_cutoff:
-                        new_data.append((t, v1, v2, v3))
+                        self.record(t, v1, v2, v3)
                 except ValueError as err:
                     if error_count == 0:
                         logging.error(
@@ -166,13 +192,10 @@ class thermostatStatTracker:
                 logging.Error("%d bad lines found")
             fp.close()
 
-            new_data.sort()
-            self.data = deque(new_data, self.data.maxlen)
-            del new_data
-
         except Exception as err:
             logging.error("Could not load tracker history from %s: %s"
                            % (filename, err))
+            self.data = old_data
 
         self.lock.release()
 
