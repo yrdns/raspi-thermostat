@@ -110,6 +110,10 @@ class heaterControl():
                 self.stashRuntime(cur_time)
                 self.runtimes[new_day] = 0.0
                 self.cur_day = new_day
+                if self.cur_start_time:
+                    self.display.startCounter(0.0, cur_time)
+                else:
+                    self.display.stopCounter(0.0)
                 self.saveHistory(cur_time=cur_time)
 
             period_pos = (cur_time - start_time) % self.period
