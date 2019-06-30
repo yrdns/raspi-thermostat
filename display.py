@@ -82,7 +82,10 @@ class displayControl():
                 cur_time = time.time()
                 display_time = (self.counter_offsettime +
                                 (cur_time - self.counter_starttime))
-                self.lock.wait(.5 - display_time%.5)
+                if self.counter_flash:
+                    self.lock.wait(.5 - display_time%.5)
+                else:
+                    self.lock.wait(1.0 - display_time%1.0)
 
         self.lock.release()
 
