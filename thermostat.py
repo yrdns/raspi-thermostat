@@ -78,8 +78,10 @@ class Thermostat:
     def saveRunHistory(self):
         return self.control.saveHistory()
 
-    def getSensorHistory(self, time_range, start_time = None, skip = None, stride=None, bin_count=None):
-        return self.tracker.getData(time_range, start_time, skip, stride, bin_count)
+    def getSensorHistory(self, time_range, start_time = None,
+                         skip = None, stride=None, bin_count=None):
+        return self.tracker.getData(time_range, start_time, skip,
+                                    stride, bin_count)
 
     def saveSensorHistory(self):
         return self.tracker.save()

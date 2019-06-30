@@ -26,7 +26,8 @@ thermostat = Thermostat(pref_file="prefs/thermostat.json",
 
 dayNames = ["Every Day", "Monday", "Tuesday", "Wednesday",
             "Thursday", "Friday", "Saturday", "Sunday"]
-timeCommandRE = re.compile("(deleteTime|ignoreTime)([0-7])([0-2][0-9])([0-5][0-9])")
+timeCommandRE = re.compile(
+"(deleteTime|ignoreTime)([0-7])([0-2][0-9])([0-5][0-9])")
 
 @app.route("/thermostat", methods=["GET"])
 def flaskThermostat():
@@ -42,7 +43,8 @@ def flaskThermostat():
     run_times = [(format_date(d), t) for (d, t) in
                   reversed(thermostat.getPastRuntimes(7))]
     temp_history = [(format_datetime_short(t), v1, v2, v3)
-                    for (t, v1, v2, v3) in thermostat.getSensorHistory(7*24*60*60)]
+                    for (t, v1, v2, v3)
+                    in thermostat.getSensorHistory(7*24*60*60)]
 
     (temp, humidity) = thermostat.readSensor()
     templateData = {

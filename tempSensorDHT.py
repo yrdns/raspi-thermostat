@@ -20,17 +20,17 @@ class tempSensor:
             humidity /= 100
         except Exception as err:
             logging.warning(
-                "Couldn't read sensor, returning last known values (%s, %s). %s"
-                 % (self.most_recent_temp,
-                    self.most_recent_humidity,
-                    err))
+ "Couldn't read sensor, returning last known values (%s, %s). %s"
+                             % (self.most_recent_temp,
+                                self.most_recent_humidity,
+                                err))
             return (self.most_recent_temp, self.most_recent_humidity)
 
         if temp == None or Humidity == None:
             logging.warning(
-                "Failed to read sensor, returning last known values (%s, %s)."
-                 % (self.most_recent_temp,
-                    self.most_recent_humidity))
+ "Failed to read sensor, returning last known values (%s, %s)."
+                             % (self.most_recent_temp,
+                                self.most_recent_humidity))
             temp = self.most_recent_temp
             humidity = self.most_recent_humidity
         else:

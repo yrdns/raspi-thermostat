@@ -46,7 +46,8 @@ class thermostatStatTracker:
 
         self.lock.release()
 
-    def getData(self, time_range, start_time = None, skip = None, stride = None, bin_count = None):
+    def getData(self, time_range, start_time = None,
+                skip = None, stride = None, bin_count = None):
         self.lock.acquire()
         if start_time == None:
             start_time = self.data[-1][0]
@@ -75,7 +76,8 @@ class thermostatStatTracker:
                             cur_acc[0] /= cur_count
                             cur_acc[1] /= cur_count
                             cur_acc[2] /= cur_count
-                        result.append((cur_bin, cur_acc[0], cur_acc[1], cur_acc[2]))
+                        result.append((cur_bin, cur_acc[0],
+                                       cur_acc[1], cur_acc[2]))
                         cur_acc = [0,0,0]
                         cur_count = 0
                         cur_bin -= stride
