@@ -49,7 +49,7 @@ def flaskThermostat():
     (temp, humidity) = thermostat.readSensor()
     templateData = {
         "currentTemp" : round(temp, 2),
-        "currentHumidity" : round(humidity, 2),
+        "currentHumidity" : round(100*humidity, 2),
         "targetTemp" : thermostat.getTargetTemp(),
         "enabled" : ("Off", "On", "Force On")[thermostat.getEnabled()],
         "status" : round(100*thermostat.getStatus(), 2),
