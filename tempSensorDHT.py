@@ -12,7 +12,8 @@ class tempSensor:
 
         self.tracker = dataTracker(2, save_file = save_file,
                                    autosave_frequency = 10*60,
-                                   age_limit = 7*24*60*60)
+                                   age_limit = 7*24*60*60,
+                                   noise_filters = [10.0/60, 0.1/60])
 
         # To update most recents
         (temp, humidity) = self.read()

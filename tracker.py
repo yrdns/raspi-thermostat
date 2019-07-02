@@ -57,14 +57,14 @@ class dataTracker:
                         split.append(self.data.pop())
 
                 for i in range(min(len(self.noise_filters), self.nvals)):
-                    if noise_filter:
+                    if self.noise_filters[i]:
                         # Sample d/dt
-                        d_dt = ((vals[i]-self.data[-1][i]) /
+                        d_dt = ((vals[i]-self.data[-1][i+1]) /
                                 (cur_time-self.data[-1][0]))
 
-                        if abs(d_dt) > noise_filter:
+                        if abs(d_dt) > self.noise_filters[i]:
                             logging.warning(
-  "Change on entry %s[%d] from record %s is greater than threshold"
+"Change on entry %s[%d] from record %s is greater than threshold (d/dt = %f)"
                                 % (entry, i, self.data[-1], d_dt))
                             success = False
 
