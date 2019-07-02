@@ -54,8 +54,8 @@ def updateStats(start_time):
                                         end_time = cur_time)
     data["times"]  = [format_datetime_short(e[0]) for e in reversed(stats)]
     data["temps"]  = [e[1] for e in reversed(stats)]
-    data["humis"]  = [e[2] for e in reversed(stats)]
-    data["onvals"] = [e[3] for e in reversed(stats)]
+    data["humis"]  = [100*e[2] for e in reversed(stats)]
+    data["onvals"] = [100*e[3] for e in reversed(stats)]
 
     data["last_time"] = cur_time
     data["wait_time"] = thermostat.getWaitTime()

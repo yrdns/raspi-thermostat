@@ -105,7 +105,7 @@ function initCharts(initialUpdateTime) {
                     position: "right",
                     ticks: {
                         callback: function(value) {
-                            return 100*value + "%";
+                            return value + "%";
                         }
                     }
                 }],
@@ -193,8 +193,9 @@ function initCharts(initialUpdateTime) {
                 yAxes: [{
                     ticks: {
                         min: 0,
-                        max: 1,
-                        callback: function(value) { return 100*value + "%"; }
+                        max: 100,
+                        position: "right",
+                        callback: function(value) { return value + "%"; }
                     }
                 }],
             },
