@@ -3,7 +3,7 @@ from heaterControl import heaterControl
 from schedule import schedule
 from simple_pid import PID
 from tempSensorDHT import tempSensor
-from tracker import thermostatStatTracker
+from tracker import dataTracker
 
 import json
 import logging
@@ -13,8 +13,8 @@ import time
 
 class Thermostat:
     def __init__(self, pref_file = None, schedule_file = None,
-                 runhistory_file = None, trackerdata_file = None,
-                 update_frequency = 60.0):
+                 runhistory_file = None, activitydata_file = None,
+                 tempdata_file = None, update_frequency = 60.0):
         self.lock = threading.Condition()
         self.thread = None
         self.next_check_time = time.time()
@@ -24,20 +24,20 @@ class Thermostat:
         self.pid = PID(1.0, 0.0, 0.0, setpoint=70, output_limits=(0.0, 1.0))
         self.schedule = schedule(save_file=schedule_file)
 
-        self.tracker = thermostatStatTracker(trackerdata_file,
-                                             autosave_frequency = 10*60,
-                                             age_limit = 7*24*60*60)
+        self.activity_tracker = dataTracker(1, save_file = activitydata_file,
+                                            autosave_frequency = 10*60,
+                                            age_limit = 24*60*60)
 
         self.pref_file = pref_file
         self.loadPrefs()
 
-        self.sensor = tempSensor()
+        self.sensor = tempSensor(tempdata_file)
+        (temp, humidity) = self.sensor.read()
 
         self.display = displayControl(self)
         if self.display != None:
-            self.display.updateDisplay(self.sensor.most_recent_temp,
-                                       self.pid.setpoint,
-                                       0.0)
+            self.display.updateDisplay(temp, self.pid.setpoint, 0.0)
+
         self.control = heaterControl(save_file = runhistory_file,
                                      display = self.display)
 
@@ -89,11 +89,17 @@ class Thermostat:
 
     def getSensorHistory(self, start_time = None, end_time = None,
                          stride = None, bin_count = None):
-        return self.tracker.getData(start_time, end_time,
-                                    stride, bin_count)
+        return self.sensor.tracker.getData(start_time, end_time,
+                                           stride, bin_count)
 
-    def saveSensorHistory(self):
-        return self.tracker.save()
+    def getActivityHistory(self, start_time = None, end_time = None,
+                           stride = None, bin_count = None):
+        return self.activity_tracker.getData(start_time, end_time,
+                                             stride, bin_count)
+
+    def saveDataFiles(self):
+        return (self.sensor.tracker.save() and
+                self.activity_tracker.save())
 
     def getEnabled(self):
         return self.enabled
@@ -108,11 +114,8 @@ class Thermostat:
     def setTunings(self, Kp, Ki, Kd):
         self.pid.tunings = (Kp, Ki, Kd)
 
-    def getLastTemp(self):
-        return self.sensor.most_recent_temp
-
-    def getLastHumidity(self):
-        return self.sensor.most_recent_humidity
+    def getLastReading(self):
+        return self.sensor.mostRecent()
 
     def getWaitTime(self, cur_time = None, default = 5.0):
         self.lock.acquire()
@@ -137,15 +140,16 @@ class Thermostat:
             if scheduled_temp != None:
                 self.setTargetTemp(scheduled_temp)
 
-            (temp, humidity) = self.sensor.read()
+            (temp, humidity) = self.sensor.read(cur_time)
             status = 0
             if (self.enabled == 2):
                 status = 1
             elif (self.enabled == 1):
-                status = self.pid(temp)
+                if temp != None:
+                    status = self.pid(temp)
             self.control.setLevel(status)
 
-            self.tracker.record(cur_time, temp, humidity, status)
+            self.activity_tracker.record(cur_time, status)
 
             if self.display != None:
                 self.display.updateDisplay(temp, self.pid.setpoint, status)

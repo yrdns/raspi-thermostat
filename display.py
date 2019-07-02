@@ -49,6 +49,9 @@ class displayControl():
             self.lock.wait()
         self.lock.release()
 
+    def clear(self):
+        self.display.lcd_clear()
+
     def startCounter(self, runtime, starttime):
         self.lock.acquire()
         self.counter_offsettime = runtime

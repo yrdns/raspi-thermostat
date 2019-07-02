@@ -7,16 +7,16 @@ import os
 import time
 import threading
 
-class thermostatStatTracker:
-    def __init__(self, save_file = None, autosave_frequency = None,
-                 age_limit = None, entry_limit = None,
-                 temp_noise_filter=10.0/60, humidity_noise_filter=0.1/60):
+class dataTracker:
+    def __init__(self, nvals=1, save_file = None, autosave_frequency = None,
+                 age_limit = None, entry_limit = None, noise_filters = []):
         self.lock = threading.RLock()
+
+        self.nvals = nvals
 
         self.age_limit = age_limit
         self.data = deque(maxlen=entry_limit)
-        self.noise_filter_temp = temp_noise_filter
-        self.noise_filter_humidity = humidity_noise_filter
+        self.noise_filters = noise_filters
 
         self.save_file = save_file
         self.last_savetime = time.time()
@@ -25,38 +25,50 @@ class thermostatStatTracker:
         if save_file:
             self.load()
 
-    def record(self, cur_time, v1, v2, v3):
-        self.lock.acquire()
+    def mostRecent(self):
+        return self.data[-1][1:] if self.data else (None, None)
+
+    def record(self, cur_time, *vals):
+        if len(vals) > self.nvals:
+            vals = vals[:self.nvals]
+        if len(vals) != self.nvals:
+            raise ValueError("Tracker expected %d values, got %d"
+                              % (self.nvals, len(vals)))
+        cur_time = int(cur_time + .5)
         success = True
 
         split = None
-        entry = (cur_time, v1, v2, v3)
-        dtmp = 0.0
-        dhum = 0.0
+        entry = (cur_time,) + tuple(vals)
+
+        self.lock.acquire()
         if self.data:
-            if cur_time < self.data[-1][0]:
-                logging.warning("Queue time %f greater then current time %f"
-                                 % (self.data[-1][0], cur_time))
-                split = [self.data.pop()]
-                while cur_time < self.data[-1][0]:
-                    split.append(self.data.pop())
+            if self.data[-1][0] == cur_time:
+                logging.warning(
+                    "Duplicate time code on entry %s, discarding"
+                             % (entry))
+                success = False
+            else:
+                if cur_time < self.data[-1][0]:
+                    logging.warning(
+                        "Queue time %f greater then current time %f"
+                                     % (self.data[-1][0], cur_time))
+                    split = [self.data.pop()]
+                    while cur_time < self.data[-1][0]:
+                        split.append(self.data.pop())
 
-            # Sample d/dt temp
-            dtmp = (v1-self.data[-1][1])/(cur_time-self.data[-1][0])
-            # Sample d/dt humidity
-            dhum = (v2-self.data[-1][2])/(cur_time-self.data[-1][0])
+                for i in range(min(len(self.noise_filters), self.nvals)):
+                    if noise_filter:
+                        # Sample d/dt
+                        d_dt = ((vals[i]-self.data[-1][i]) /
+                                (cur_time-self.data[-1][0]))
 
-        if abs(dtmp) > self.noise_filter_temp:
-            logging.warning(
-  "Change for temperature on entry %s from record %s is greater than threshold, d/dt = %f"
-                             % (entry, self.data[-1], dtmp))
-            success = False
-        elif abs(dhum) > self.noise_filter_humidity:
-            logging.warning(
-  "Change for humidity on entry %s from record %s is greater than threshold, d/dt = %f"
-                             % (entry, self.data[-1], dhum))
-            success = False
-        else:
+                        if abs(d_dt) > noise_filter:
+                            logging.warning(
+  "Change on entry %s[%d] from record %s is greater than threshold"
+                                % (entry, i, self.data[-1], d_dt))
+                            success = False
+
+        if success:
             self.data.append(entry)
             if split:
                 self.data.extend(reversed(split))
@@ -64,7 +76,7 @@ class thermostatStatTracker:
         self.prune(cur_time)
 
         if (self.autosave_frequency and
-              cur_time - self.last_savetime >= self.autosave_frequency):
+            cur_time - self.last_savetime >= self.autosave_frequency):
             self.save()
 
         self.lock.release()
@@ -119,8 +131,9 @@ class thermostatStatTracker:
         if age_limit == None:
             age_limit = self.age_limit
 
-        while age_limit != None and self.data[0][0] < cur_time - age_limit:
-            self.data.popleft()
+        if self.data and age_limit != None:
+            while self.data[0][0] < cur_time - age_limit:
+                self.data.popleft()
 
     def save(self, filename = None, cur_time = None):
         if filename == None:
@@ -176,10 +189,10 @@ class thermostatStatTracker:
             error_count = 0
             for row in reader:
                 try:
-                    (t, v1, v2, v3) = (float(v) for v in row)
-                    if t >= age_cutoff:
-                        self.record(t, v1, v2, v3)
-                except ValueError as err:
+                    row = [float(v) for v in row]
+                    if row[0] >= age_cutoff:
+                        self.record(*row)
+                except (IndexError, ValueError) as err:
                     if error_count == 0:
                         logging.error(
                             "Bad tracker csv line < %s > in file \"%s\""
@@ -192,7 +205,7 @@ class thermostatStatTracker:
             fp.close()
 
         except Exception as err:
-            logging.error("Could not load tracker history from %s: %s"
+            logging.error("Could not load data from %s: %s"
                            % (filename, err))
             self.data = old_data
 

@@ -35,8 +35,10 @@ function updateCharts(state) {
             state.weeklyChart.data.labels.push(data.times[i]);
             state.weeklyChart.data.datasets[0].data.push(data.temps[i]);
             state.weeklyChart.data.datasets[1].data.push(data.humis[i]);
+        }
 
-            state.activityChart.data.labels.push(data.times[i]);
+        for (i = 0; i < data.ontimes.length; i++) {
+            state.activityChart.data.labels.push(data.ontimes[i]);
             state.activityChart.data.datasets[0].data.push(data.onvals[i]);
         }
 
@@ -48,8 +50,8 @@ function updateCharts(state) {
     });
 }
 
-function initCharts(initialUpdateTime) {
-    var state = { last_time : initialUpdateTime,
+function initCharts() {
+    var state = { last_time : 0.0,
                   to_wait : 60.0 };
 
     ctx = document.getElementById("weeklyChart").getContext("2d");

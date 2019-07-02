@@ -1,50 +1,58 @@
-import Adafruit_DHT as dht
+from tracker import dataTracker
 
+import Adafruit_DHT as dht
 import logging
 
 def toFahrenheit(val):
     return 1.8*val + 32
 
 class tempSensor:
-    def __init__(self, pin=25):
+    def __init__(self, save_file = None, pin = 25):
         self.pin = pin
 
-        self.most_recent_temp = None
-        self.most_recent_humidity = None
+        self.tracker = dataTracker(2, save_file = save_file,
+                                   autosave_frequency = 10*60,
+                                   age_limit = 7*24*60*60)
 
         # To update most recents
-        self.read()
-
-        if (self.most_recent_temp == None or
-            self.most_recent_humidity == None):
-            # Should I raise error?
-            logging.error("Can't detect sensor on pin %d")
-
-    def read(self):
-        temp = None
-        humidity = None
-        try:
-            (humidity, temp) = dht.read_retry(dht.DHT22, self.pin)
-            humidity /= 100
-        except Exception as err:
-            logging.warning(
- "Couldn't read sensor, returning last known values (%s, %s). %s"
-                             % (self.most_recent_temp,
-                                self.most_recent_humidity,
-                                err))
-            return (self.most_recent_temp, self.most_recent_humidity)
+        (temp, humidity) = self.read()
 
         if temp == None or humidity == None:
+            raise ValueError("Can't detect sensor on pin %d")
+
+    def mostRecent(self):
+        return self.tracker.mostRecent()
+
+    def read(self, cur_time = None, ntries = 10):
+        temp = None
+        humidity = None
+
+        for i in range(ntries):
+            try:
+                (humidity, temp) = dht.read_retry(dht.DHT22, self.pin)
+            except Exception as err:
+                logging.error("Sensor read caught error: %s" % err)
+                continue
+
+            if humidity != None and temp != None:
+                humidity /= 100
+                temp = toFahrenheit(temp)
+
+                if (cur_time == None or
+                    self.tracker.record(cur_time,
+                                        temp,
+                                        humidity)):
+                    break
+            temp = None
+            humidity = None
+
+        if temp == None or humidity == None:
+            most_recent_vals = self.mostRecent()
+
             logging.warning(
  "Failed to read sensor, returning last known values (%s, %s)."
-                             % (self.most_recent_temp,
-                                self.most_recent_humidity))
-            temp = self.most_recent_temp
-            humidity = self.most_recent_humidity
-        else:
-            temp = toFahrenheit(temp)
-            self.most_recent_temp = temp
-            self.most_recent_humidity = humidity
+                             % most_recent_vals)
+            return most_recent_vals
 
         return (temp, humidity)
 

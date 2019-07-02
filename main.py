@@ -19,11 +19,13 @@ def format_datetime_short(t):
 logging.basicConfig(level="INFO")
 
 app = Flask(__name__)
-thermostat = Thermostat(pref_file="prefs/thermostat.json",
-                        schedule_file="prefs/schedule.json",
-                        runhistory_file="prefs/usage_history.csv",
-                        trackerdata_file="prefs/stats.csv")
 app.config['SEND_FILE_MAX_AGE_DEFAULT'] = 0
+
+thermostat = Thermostat(pref_file         = "prefs/thermostat.json",
+                        schedule_file     = "prefs/schedule.json",
+                        runhistory_file   = "prefs/usage_history.csv",
+                        activitydata_file = "prefs/activitydata.csv",
+                        tempdata_file     = "prefs/stats.csv")
 
 dayNames = ["Every Day", "Monday", "Tuesday", "Wednesday",
             "Thursday", "Friday", "Saturday", "Sunday"]
@@ -31,9 +33,15 @@ timeCommandRE = re.compile(
 "(deleteTime|ignoreTime)([0-7])([0-2][0-9])([0-5][0-9])")
 
 def simpleStats():
+    (last_temp, last_humi) = thermostat.getLastReading()
+    if last_temp != None:
+        last_temp = round(last_temp, 2)
+    if last_humi != None:
+        last_humi = round(100*last_humi, 2)
+
     data = {
-        "currentTemp" : round(thermostat.getLastTemp(), 2),
-        "currentHumidity" : round(100*thermostat.getLastHumidity(), 2),
+        "currentTemp" : last_temp,
+        "currentHumidity" : last_humi,
         "targetTemp" : round(thermostat.getTargetTemp(), 2),
         "enabled" : ("Off", "On", "Force On")[thermostat.getEnabled()],
         "status" : round(100*thermostat.getStatus(), 2),
@@ -55,7 +63,11 @@ def updateStats(start_time):
     data["times"]  = [format_datetime_short(e[0]) for e in reversed(stats)]
     data["temps"]  = [e[1] for e in reversed(stats)]
     data["humis"]  = [100*e[2] for e in reversed(stats)]
-    data["onvals"] = [100*e[3] for e in reversed(stats)]
+
+    stats = thermostat.getActivityHistory(start_time = start_time,
+                                          end_time = cur_time)
+    data["ontimes"] = [format_datetime_short(e[0]) for e in reversed(stats)]
+    data["onvals"]  = [100*e[1] for e in reversed(stats)]
 
     data["last_time"] = cur_time
     data["wait_time"] = thermostat.getWaitTime()
@@ -81,7 +93,6 @@ def templateStats():
     data["dayNames"]      = dayNames
     data["scheduleTimes"] = scheduleTimes
     data["scheduleRows"]  = scheduleRows
-    data["dataStartTime"] = time.time() - 7*24*60*60
 
     return data
 
@@ -90,7 +101,7 @@ def flaskUpdate():
     try:
         last_time = float(request.args.get("t"))
     except:
-        return jsonify({})
+        last_time = None
 
     return jsonify(updateStats(last_time))
 
@@ -175,7 +186,9 @@ if __name__ == "__main__":
         thermostat.savePrefs()
         thermostat.schedule.saveSchedule()
         thermostat.saveRunHistory()
-        thermostat.saveSensorHistory()
+        thermostat.saveDataFiles()
+
+        thermostat.display.clear()
         logging.warning("Cleanup complete.")
         exit()
 
