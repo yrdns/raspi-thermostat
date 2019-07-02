@@ -18,17 +18,18 @@ function formatTime2(value) {
 
 function updateLoop(state) {
     updateCharts(state);
-
-    setTimeout(function() { updateLoop(state); }, 60000);
 }
 
 function updateCharts(state) {
-    $.getJSON("update.json", {t : state.last_time}, function(data) {
-        state.to_wait = data.to_wait;
+    $.getJSON("update.json", {t : state.lastTime}, function(data) {
+        $("#statusField").text(data.enabled);
+        $("#tempField").text(data.currentTemp);
+        $("#targetField").text(data.targetTemp);
+        $("#humidityField").text(data.currentHumidity);
+        $("#onvalField").text(data.onval);
+        $("#runtimeField").text(data.todaysRuntime);
 
-        console.log(state.to_wait)
-
-        state.usageHistoryChart.data.labels = data.runtime_labels;
+        state.usageHistoryChart.data.labels = data.runtimeLabels;
         state.usageHistoryChart.data.datasets[0].data = data.runtimes;
 
         for (i = 0; i < data.times.length; i++) {
@@ -46,13 +47,15 @@ function updateCharts(state) {
         state.usageHistoryChart.update()
         state.activityChart.update()
 
-        state.last_time = data.last_time;
+        state.lastTime = data.lastTime;
+
+        setTimeout(function() { updateLoop(state); },
+                   data.waitTime * 1000);
     });
 }
 
 function initCharts() {
-    var state = { last_time : 0.0,
-                  to_wait : 60.0 };
+    var state = { lastTime : 0.0 };
 
     ctx = document.getElementById("weeklyChart").getContext("2d");
     state.weeklyChart = new Chart(ctx, {

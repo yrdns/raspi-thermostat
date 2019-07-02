@@ -8,12 +8,12 @@
 <div class="pagebox"><div class="mainflex">
     <div class="row">
         <div class="maininfobox">
-            Status: {{ enabled }} <br>
-            Current Temperature: {{ currentTemp }}&deg;F <br>
-            Target Temperature: {{ targetTemp }}&deg;F <br>
-            Current Humidity: {{ currentHumidity }}&percnt; <br>
-            Current On Value: {{ status }}% <br>
-            Today's Runtime: {{ todaysRuntime }} <br>
+            Status: <a id="statusField">{{ enabled }}</a> <br>
+            Current Temperature: <a id="tempField">{{ currentTemp }}</a>&deg;F <br>
+            Target Temperature: <a id="targetField">{{ targetTemp }}</a>&deg;F <br>
+            Current Humidity: <a id="humidityField">{{ currentHumidity }}</a>&percnt; <br>
+            Current On Value: <a id="onvalField">{{ onval }}</a>% <br>
+            Today's Runtime: <a id="runtimeField">{{ todaysRuntime }}</a> <br>
 
             <br>
             <form method="post">

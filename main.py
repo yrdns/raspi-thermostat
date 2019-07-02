@@ -44,7 +44,7 @@ def simpleStats():
         "currentHumidity" : last_humi,
         "targetTemp" : round(thermostat.getTargetTemp(), 2),
         "enabled" : ("Off", "On", "Force On")[thermostat.getEnabled()],
-        "status" : round(100*thermostat.getStatus(), 2),
+        "onval" : round(100*thermostat.getStatus(), 2),
         "todaysRuntime" : format_runtime(thermostat.getCurRuntime()),
     }
     return data
@@ -54,8 +54,8 @@ def updateStats(start_time):
 
     runtimes = thermostat.getPastRuntimes(7)
     runtimes.reverse()
-    data["runtime_labels"] = [format_date(e[0]) for e in runtimes]
-    data["runtimes"]       = [e[1] for e in runtimes]
+    data["runtimeLabels"] = [format_date(e[0]) for e in runtimes]
+    data["runtimes"]      = [e[1] for e in runtimes]
 
     cur_time = time.time()
     stats = thermostat.getSensorHistory(start_time = start_time,
@@ -69,8 +69,8 @@ def updateStats(start_time):
     data["ontimes"] = [format_datetime_short(e[0]) for e in reversed(stats)]
     data["onvals"]  = [100*e[1] for e in reversed(stats)]
 
-    data["last_time"] = cur_time
-    data["wait_time"] = thermostat.getWaitTime()
+    data["lastTime"] = cur_time
+    data["waitTime"] = thermostat.getWaitTime()
 
     return data
 
