@@ -12,6 +12,14 @@ class tempSensor:
         self.most_recent_temp = None
         self.most_recent_humidity = None
 
+        # To update most recents
+        self.read()
+
+        if (self.most_recent_temp == None or
+            self.most_recent_humidity == None):
+            # Should I raise error?
+            logging.error("Can't detect sensor on pin %d")
+
     def read(self):
         temp = None
         humidity = None

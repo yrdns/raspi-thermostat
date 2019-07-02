@@ -1,6 +1,6 @@
 from thermostat import Thermostat
 
-from flask import Flask, render_template, request, redirect
+from flask import Flask, jsonify, redirect, render_template, request
 import logging
 import re
 import signal
@@ -11,7 +11,7 @@ def format_runtime(t):
     return "%02dh:%02dm:%02ds" % (t//3600, (t%3600)//60, t%60)
 
 def format_date(d):
-    return "%d-%d" % (d[1], d[2])
+    return "%d/%d" % (d[1], d[2])
 
 def format_datetime_short(t):
     return time.strftime("%Y%m%dT%H%M%S", time.localtime(t))
@@ -23,15 +23,53 @@ thermostat = Thermostat(pref_file="prefs/thermostat.json",
                         schedule_file="prefs/schedule.json",
                         runhistory_file="prefs/usage_history.csv",
                         trackerdata_file="prefs/stats.csv")
+app.config['SEND_FILE_MAX_AGE_DEFAULT'] = 0
 
 dayNames = ["Every Day", "Monday", "Tuesday", "Wednesday",
             "Thursday", "Friday", "Saturday", "Sunday"]
 timeCommandRE = re.compile(
 "(deleteTime|ignoreTime)([0-7])([0-2][0-9])([0-5][0-9])")
 
-@app.route("/thermostat", methods=["GET"])
-def flaskThermostat():
+def simpleStats():
+    data = {
+        "currentTemp" : round(thermostat.getLastTemp(), 2),
+        "currentHumidity" : round(100*thermostat.getLastHumidity(), 2),
+        "targetTemp" : round(thermostat.getTargetTemp(), 2),
+        "enabled" : ("Off", "On", "Force On")[thermostat.getEnabled()],
+        "status" : round(100*thermostat.getStatus(), 2),
+        "todaysRuntime" : format_runtime(thermostat.getCurRuntime()),
+    }
+    return data
+
+def updateStats(start_time):
+    data = simpleStats()
+
+    runtimes = thermostat.getPastRuntimes(7)
+    runtimes.reverse()
+    data["runtime_labels"] = [format_date(e[0]) for e in runtimes]
+    data["runtimes"]       = [e[1] for e in runtimes]
+
+    cur_time = time.time()
+    stats = thermostat.getSensorHistory(start_time = start_time,
+                                        end_time = cur_time)
+    data["times"]  = [format_datetime_short(e[0]) for e in reversed(stats)]
+    data["temps"]  = [e[1] for e in reversed(stats)]
+    data["humis"]  = [e[2] for e in reversed(stats)]
+    data["onvals"] = [e[3] for e in reversed(stats)]
+
+    data["last_time"] = cur_time
+    data["wait_time"] = thermostat.getWaitTime()
+
+    return data
+
+def templateStats():
+    data = simpleStats()
+
     (Kp, Ki, Kd) = thermostat.getTunings()
+    data["Kp"] = Kp
+    data["Ki"] = Ki
+    data["Kd"] = Kd
+
     (scheduleTimes, scheduleRows) = thermostat.schedule.tabled()
     if not scheduleTimes:
         scheduleTimes = [(0,0)]
@@ -40,29 +78,25 @@ def flaskThermostat():
                                           "AM" if h<12 else "PM"),
                       "%02d%02d" % (h, m))
                        for (h,m) in scheduleTimes]
-    run_times = [(format_date(d), t) for (d, t) in
-                  reversed(thermostat.getPastRuntimes(7))]
-    temp_history = [(format_datetime_short(t), v1, v2, v3)
-                    for (t, v1, v2, v3)
-                    in thermostat.getSensorHistory(7*24*60*60)]
+    data["dayNames"]      = dayNames
+    data["scheduleTimes"] = scheduleTimes
+    data["scheduleRows"]  = scheduleRows
+    data["dataStartTime"] = time.time() - 7*24*60*60
 
-    (temp, humidity) = thermostat.readSensor()
-    templateData = {
-        "currentTemp" : round(temp, 2),
-        "currentHumidity" : round(100*humidity, 2),
-        "targetTemp" : thermostat.getTargetTemp(),
-        "enabled" : ("Off", "On", "Force On")[thermostat.getEnabled()],
-        "status" : round(100*thermostat.getStatus(), 2),
-        "todaysRuntime" : format_runtime(run_times[-1][1]),
-        "usageHistory" : run_times,
-        "tempHistory" : temp_history,
-        "Kp" : Kp, "Ki" : Ki, "Kd" : Kd,
-        "dayNames" : dayNames,
-        "scheduleTimes" : scheduleTimes,
-        "scheduleRows" : scheduleRows,
-    }
+    return data
 
-    return render_template("main.html", **templateData)
+@app.route("/update.json")
+def flaskUpdate():
+    try:
+        last_time = float(request.args.get("t"))
+    except:
+        return jsonify({})
+
+    return jsonify(updateStats(last_time))
+
+@app.route("/thermostat", methods=["GET"])
+def flaskThermostat():
+    return render_template("main.html", **templateStats())
 
 @app.route("/thermostat", methods=["POST"])
 def flaskThermostatUpdate():

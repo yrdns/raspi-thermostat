@@ -1,0 +1,31 @@
+{
+  "name": "thermostat",
+  "version": "1.0.0",
+  "description": "Package for javascript for thermostat project",
+  "main": "static/main.bundle.min.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/yrdns/raspi-thermostat.git"
+  },
+  "author": "yrdnsh@gmail.com",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/yrdns/raspi-thermostat/issues"
+  },
+  "homepage": "https://github.com/yrdns/raspi-thermostat#readme",
+  "dependencies": {
+    "chart.js": "^2.8.0",
+    "jquery": "^3.4.1",
+    "moment": "^2.24.0"
+  },
+  "devDependencies": {
+    "gulp": "^4.0.2",
+    "gulp-concat": "^2.6.1",
+    "gulp-noop": "^1.0.0",
+    "gulp-rename": "^1.4.0",
+    "gulp-terser": "^1.2.0"
+  }
+}

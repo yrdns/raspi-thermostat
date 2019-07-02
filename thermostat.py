@@ -32,11 +32,12 @@ class Thermostat:
         self.loadPrefs()
 
         self.sensor = tempSensor()
-        (temp, humidity) = self.sensor.read()
 
         self.display = displayControl(self)
         if self.display != None:
-            self.display.updateDisplay(temp, self.pid.setpoint, 0.0)
+            self.display.updateDisplay(self.sensor.most_recent_temp,
+                                       self.pid.setpoint,
+                                       0.0)
         self.control = heaterControl(save_file = runhistory_file,
                                      display = self.display)
 
@@ -77,15 +78,18 @@ class Thermostat:
     def getStatus(self):
         return self.control.getLevel()
 
+    def getCurRuntime(self):
+        return self.control.getCurRuntime()
+
     def getPastRuntimes(self, days=None, skip=None, start_day=None):
         return self.control.getPastRuntimes(days, skip, start_day)
 
     def saveRunHistory(self):
         return self.control.saveHistory()
 
-    def getSensorHistory(self, time_range, start_time = None,
-                         skip = None, stride=None, bin_count=None):
-        return self.tracker.getData(time_range, start_time, skip,
+    def getSensorHistory(self, start_time = None, end_time = None,
+                         stride = None, bin_count = None):
+        return self.tracker.getData(start_time, end_time,
                                     stride, bin_count)
 
     def saveSensorHistory(self):
@@ -104,8 +108,22 @@ class Thermostat:
     def setTunings(self, Kp, Ki, Kd):
         self.pid.tunings = (Kp, Ki, Kd)
 
-    def readSensor(self):
-        return self.sensor.read()
+    def getLastTemp(self):
+        return self.sensor.most_recent_temp
+
+    def getLastHumidity(self):
+        return self.sensor.most_recent_humidity
+
+    def getWaitTime(self, cur_time = None, default = 5.0):
+        self.lock.acquire()
+        if cur_time == None:
+            cur_time = time.time()
+        next_check_time = self.next_check_time
+        self.lock.release()
+
+        if cur_time >= next_check_time:
+            return default
+        return next_check_time - cur_time
 
     def thermostatThread(self):
         self.lock.acquire()

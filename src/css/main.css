@@ -1,0 +1,57 @@
+input::-webkit-outer-spin-button,
+input::-webkit-inner-spin-button {
+    display: none;
+}
+
+input[type=number] {
+    -moz-appearance:textfield;
+}
+
+* {
+    box-sizing: border-box;
+}
+
+.pagebox {
+    display: flex;
+    justify-content: center;
+}
+
+.mainflex {
+    display: flex;
+    flex-direction: column;
+    flex-basis: 1280px;
+    flex-grow: 0;
+    flex-shrink: 0;
+    justify-content: center;
+}
+
+.row {
+    display: flex;
+    flex-direction: row;
+    justify-content: space-between;
+    flex-wrap: wrap;
+}
+
+.flexcell {
+    display: flex;
+    flex-direction: column;
+    width: auto;
+}
+
+.maininfobox flexcell {
+}
+
+.schedulebox flexcell {
+}
+
+.pidbox {
+    display: flex;
+    justify-content: left;
+}
+
+.graphRow {
+    display: flex;
+    flex-direction: row;
+    flex-wrap: wrap;
+}
+
