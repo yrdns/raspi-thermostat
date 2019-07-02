@@ -6,32 +6,29 @@
 </head>
 <body onLoad="initCharts()">
 <div class="pagebox"><div class="mainflex">
-    <div class="row">
-        <div class="maininfobox">
-            Status: <a id="statusField">{{ enabled }}</a> <br>
-            Current Temperature: <a id="tempField">{{ currentTemp }}</a>&deg;F <br>
-            Target Temperature: <a id="targetField">{{ targetTemp }}</a>&deg;F <br>
-            Current Humidity: <a id="humidityField">{{ currentHumidity }}</a>&percnt; <br>
-            Current On Value: <a id="onvalField">{{ onval }}</a>% <br>
-            Today's Runtime: <a id="runtimeField">{{ todaysRuntime }}</a> <br>
-
-            <br>
-            <input id=tempInput type="number" step="any" value="{{ targetTemp }}">
-            <input type="button" value="Update" onclick="setTemp()">
-            <br>
-            <input type="button" value="Decrease Temp" onclick="decreaseTemp()" />
-            <input type="button" value="Increase Temp" onclick="increaseTemp()"/>
-            <br>
-            <input type="button" value="Disable" onclick="setState('off')"/>
-            <input type="button" value="Enable" onclick="setState('on')"/>
-            <input type="button" value="Force On" onclick="setState('force')"/>
-            <br>
-
-            PID Tunings: <br>
-            <input id="KpInput" type="number" step="any" value="{{ Kp }}">
-            <input id="KiInput" type="number" step="any" value="{{ Ki }}">
-            <input id="KdInput" type="number" step="any" value="{{ Kd }}">
-            <input type="button" value="Update" onclick="setPIDs()">
+    <div class="inforow">
+        <div class="statebox">
+            Status: <a id="statusField">{{ enabled }}</a><br>
+            Current Temperature: <a id="tempField">{{ currentTemp }}</a>&deg;F<br>
+            Target Temperature: <a id="targetField">{{ targetTemp }}</a>&deg;F<br>
+            Current Humidity: <a id="humidityField">{{ currentHumidity }}</a>&percnt;<br>
+            Current On Value: <a id="onvalField">{{ onval }}</a>%<br>
+            Today's Runtime: <a id="runtimeField">{{ todaysRuntime }}</a><br>
+        </div>
+        <div class="controlbox">
+            <div style="width:100%">PID Tunings:</div>
+            <div style="width:25%"><input id="KpInput" type="number" step="any" value="{{ Kp }}"></div>
+            <div style="width:25%"><input id="KiInput" type="number" step="any" value="{{ Ki }}"></div>
+            <div style="width:25%"><input id="KdInput" type="number" step="any" value="{{ Kd }}"></div>
+            <div style="width:25%"><input type="button" value="Update" onclick="setPIDs()"></div>
+            <div style="width:100%; margin-top:.5em">Controls:</div>
+            <div style="width:75%"><input id=tempInput type="number" step="any" value="{{ targetTemp }}"></div>
+            <div style="width:25%"><input type="button" value="Update" onclick="setTemp()"></div>
+            <div style="width:50%"><input type="button" value="Decrease Temp" onclick="decreaseTemp()" /></div>
+            <div style="width:50%"><input type="button" value="Increase Temp" onclick="increaseTemp()"/></div>
+            <div style="width:33%"><input type="button" value="Disable" onclick="setState('off')"/></div>
+            <div style="width:33%"><input type="button" value="Enable" onclick="setState('on')"/></div>
+            <div style="width:33%"><input type="button" value="Force On" onclick="setState('force')"/></div>
         </div>
         <div class="schedulebox">
             <table><tr><th>Times</th>
@@ -73,7 +70,9 @@
         </div>
     </div>
     <br>
-    <canvas id="weeklyChart"></canvas>
+    <div class="graphRow">
+        <canvas id="weeklyChart"></canvas>
+    </div>
     <div class="graphRow">
         <div style="width:50%"><canvas id="usageHistoryChart"></canvas></div>
         <div style="width:50%"><canvas id="activityChart"></canvas></div>
