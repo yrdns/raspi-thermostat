@@ -196,10 +196,10 @@ function initCharts() {
                     }
                 }],
                 yAxes: [{
+                    position: "right",
                     ticks: {
                         min: 0,
                         max: 100,
-                        position: "right",
                         callback: function(value) { return value + "%"; }
                     }
                 }],
