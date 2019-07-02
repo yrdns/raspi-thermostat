@@ -159,13 +159,16 @@ class Thermostat:
 
             cur_time = time.time()
             if cur_time < self.next_check_time:
+                self.lock.notify()
                 self.lock.wait(self.next_check_time - cur_time)
         self.lock.notify()
         self.lock.release()
 
-    def updateState(self):
+    def updateState(self, block=False):
         self.lock.acquire()
         self.lock.notify()
+        if block:
+            self.lock.wait()
         self.lock.release()
         self.savePrefs()
 

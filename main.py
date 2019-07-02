@@ -70,7 +70,7 @@ def updateStats(start_time):
     data["onvals"]  = [100*e[1] for e in reversed(stats)]
 
     data["lastTime"] = cur_time
-    data["waitTime"] = thermostat.getWaitTime()
+    data["waitTime"] = thermostat.getWaitTime() + 2.0
 
     return data
 
@@ -100,10 +100,59 @@ def templateStats():
 def flaskUpdate():
     try:
         last_time = float(request.args.get("t"))
-    except:
+    except (ValueError, TypeError):
         last_time = None
 
     return jsonify(updateStats(last_time))
+
+def apiError():
+    return jsonify({"success": False})
+
+@app.route("/api")
+def flaskAPI():
+    command = request.args.get("q")
+
+    if command == "setTemp":
+        try:
+            val = float(request.args["v"])
+        except (KeyError, ValueError, TypeError):
+            return apiError()
+
+        thermostat.setTargetTemp(val)
+        thermostat.updateState(True)
+
+    elif command == "increaseTemp":
+        thermostat.setTargetTemp(thermostat.getTargetTemp() + 1)
+        thermostat.updateState(True)
+
+    elif command == "decreaseTemp":
+        thermostat.setTargetTemp(thermostat.getTargetTemp() - 1)
+        thermostat.updateState(True)
+
+    elif command == "setPIDs":
+        try:
+            Kp = float(request.args["Kp"])
+            Ki = float(request.args["Ki"])
+            Kd = float(request.args["Kd"])
+        except (KeyError, ValueError, TypeError):
+            return apiError()
+
+        thermostat.setTunings(Kp, Ki, Kd)
+        thermostat.updateState(True)
+
+    elif command == "setState":
+        try:
+            val = ("off","on","force").index(request.args["v"])
+        except (ValueError, KeyError):
+            return apiError()
+
+        thermostat.setEnabled(val)
+        thermostat.updateState(True)
+
+    data = simpleStats()
+    data["success"] = True
+
+    return jsonify(data)
 
 @app.route("/thermostat", methods=["GET"])
 def flaskThermostat():
@@ -143,40 +192,6 @@ def flaskThermostatUpdate():
             logging.exception("Parsing add_time caught exception")
 
         return redirect("/thermostat")
-
-    if "edit_tunings" in request.form:
-        try:
-            Kp = float(request.form["Kp"])
-            Ki = float(request.form["Ki"])
-            Kd = float(request.form["Kd"])
-            thermostat.setTunings(Kp, Ki, Kd)
-            thermostat.updateState()
-        except Exception as err:
-            logging.exception("Parsing edit_tunings caught exception")
-        return redirect("/thermostat")
-
-    new_temp = None
-    try:
-        new_temp = float(request.form["temp"])
-    except Exception as err:
-        logging.exception("Parsing temp caught exception")
-
-    # Get lock to avoid concurrency & enable signaling
-    if new_temp == None:
-        new_temp = thermostat.getTargetTemp()
-    if "decrease_temp" in request.form:
-        new_temp -= 1
-    if "increase_temp" in request.form:
-        new_temp += 1
-    if "enable" in request.form:
-        thermostat.setEnabled(1)
-    if "disable" in request.form:
-        thermostat.setEnabled(0)
-    if "force_on" in request.form:
-        thermostat.setEnabled(2)
-
-    thermostat.setTargetTemp(new_temp)
-    thermostat.updateState()
 
     return redirect("/thermostat")
 

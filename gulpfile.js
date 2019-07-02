@@ -11,6 +11,7 @@ css_out = "main.bundle.min.css";
 js_files = ["node_modules/jquery/dist/jquery.min.js",
             "node_modules/moment/min/moment.min.js",
             "node_modules/chart.js/dist/Chart.min.js",
+            "src/js/apiCommands.js",
             "src/js/main.js"];
 
 css_files = ["node_modules/chart.js/dist/Chart.min.css",

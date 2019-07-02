@@ -16,17 +16,22 @@
             Today's Runtime: <a id="runtimeField">{{ todaysRuntime }}</a> <br>
 
             <br>
-            <form method="post">
-                <input type="number" step="any" name="temp" value="{{ targetTemp }}">
-                <input type="submit" name="edit_temp" value="Update">
-                <br>
-                <input type="submit" name="decrease_temp" value="Decrease Temp" />
-                <input type="submit" name="increase_temp" value="Increase Temp" />
-                <br>
-                <input type="submit" name="disable" value="Disable" />
-                <input type="submit" name="enable" value="Enable" />
-                <input type="submit" name="force_on" value="Force On" />
-            </form>
+            <input id=tempInput type="number" step="any" value="{{ targetTemp }}">
+            <input type="button" value="Update" onclick="setTemp()">
+            <br>
+            <input type="button" value="Decrease Temp" onclick="decreaseTemp()" />
+            <input type="button" value="Increase Temp" onclick="increaseTemp()"/>
+            <br>
+            <input type="button" value="Disable" onclick="setState('off')"/>
+            <input type="button" value="Enable" onclick="setState('on')"/>
+            <input type="button" value="Force On" onclick="setState('force')"/>
+            <br>
+
+            PID Tunings: <br>
+            <input id="KpInput" type="number" step="any" value="{{ Kp }}">
+            <input id="KiInput" type="number" step="any" value="{{ Ki }}">
+            <input id="KdInput" type="number" step="any" value="{{ Kd }}">
+            <input type="button" value="Update" onclick="setPIDs()">
         </div>
         <div class="schedulebox">
             <table><tr><th>Times</th>
@@ -67,15 +72,7 @@
             </form>
         </div>
     </div>
-    <div class="pidbox">
-        PID Tunings: <br>
-        <form method="post">
-            <input type="number" step="any" name="Kp" value="{{ Kp }}">
-            <input type="number" step="any" name="Ki" value="{{ Ki }}">
-            <input type="number" step="any" name="Kd" value="{{ Kd }}">
-            <input type="submit" name="edit_tunings" value="Update">
-        </form>
-    </div>
+    <br>
     <canvas id="weeklyChart"></canvas>
     <div class="graphRow">
         <div style="width:50%"><canvas id="usageHistoryChart"></canvas></div>

@@ -16,49 +16,52 @@ function formatTime2(value) {
     return h+"h "+m+"m "+s+ms+"s";
 }
 
-function updateLoop(state) {
-    updateCharts(state);
-}
+var WeeklyChart = null;
+var UsageHistoryChart = null;
+var ActivityChart = null;
 
-function updateCharts(state) {
-    $.getJSON("update.json", {t : state.lastTime}, function(data) {
-        $("#statusField").text(data.enabled);
-        $("#tempField").text(data.currentTemp);
-        $("#targetField").text(data.targetTemp);
-        $("#humidityField").text(data.currentHumidity);
-        $("#onvalField").text(data.onval);
-        $("#runtimeField").text(data.todaysRuntime);
+function updateLoop(lastTime) {
+    $.getJSON("update.json", {t : lastTime}, function(data) {
+        updateInfoBox(data);
+        updateCharts(data);
 
-        state.usageHistoryChart.data.labels = data.runtimeLabels;
-        state.usageHistoryChart.data.datasets[0].data = data.runtimes;
-
-        for (i = 0; i < data.times.length; i++) {
-            state.weeklyChart.data.labels.push(data.times[i]);
-            state.weeklyChart.data.datasets[0].data.push(data.temps[i]);
-            state.weeklyChart.data.datasets[1].data.push(data.humis[i]);
-        }
-
-        for (i = 0; i < data.ontimes.length; i++) {
-            state.activityChart.data.labels.push(data.ontimes[i]);
-            state.activityChart.data.datasets[0].data.push(data.onvals[i]);
-        }
-
-        state.weeklyChart.update()
-        state.usageHistoryChart.update()
-        state.activityChart.update()
-
-        state.lastTime = data.lastTime;
-
-        setTimeout(function() { updateLoop(state); },
+        setTimeout(function() { updateLoop(data.lastTime); },
                    data.waitTime * 1000);
     });
 }
 
-function initCharts() {
-    var state = { lastTime : 0.0 };
+function updateInfoBox(data) {
+    $("#statusField").text(data.enabled);
+    $("#tempField").text(data.currentTemp);
+    $("#targetField").text(data.targetTemp);
+    $("#humidityField").text(data.currentHumidity);
+    $("#onvalField").text(data.onval);
+    $("#runtimeField").text(data.todaysRuntime);
+}
 
+function updateCharts(data) {
+    UsageHistoryChart.data.labels = data.runtimeLabels;
+    UsageHistoryChart.data.datasets[0].data = data.runtimes;
+
+    for (i = 0; i < data.times.length; i++) {
+        WeeklyChart.data.labels.push(data.times[i]);
+        WeeklyChart.data.datasets[0].data.push(data.temps[i]);
+        WeeklyChart.data.datasets[1].data.push(data.humis[i]);
+    }
+
+    for (i = 0; i < data.ontimes.length; i++) {
+        ActivityChart.data.labels.push(data.ontimes[i]);
+        ActivityChart.data.datasets[0].data.push(data.onvals[i]);
+    }
+
+    WeeklyChart.update()
+    UsageHistoryChart.update()
+    ActivityChart.update()
+}
+
+function initCharts() {
     ctx = document.getElementById("weeklyChart").getContext("2d");
-    state.weeklyChart = new Chart(ctx, {
+    WeeklyChart = new Chart(ctx, {
         type: "line",
         data: {
             labels: [],
@@ -127,7 +130,7 @@ function initCharts() {
     });
 
     var ctx = document.getElementById("usageHistoryChart").getContext("2d");
-    state.usageHistoryChart = new Chart(ctx, {
+    UsageHistoryChart = new Chart(ctx, {
         type:"bar",
         data: {
             labels: [],
@@ -164,7 +167,7 @@ function initCharts() {
     });
 
     ctx = document.getElementById("activityChart").getContext("2d");
-    state.activityChart = new Chart(ctx, {
+    ActivityChart = new Chart(ctx, {
         type: "line",
         data: {
             labels: [],
@@ -212,6 +215,6 @@ function initCharts() {
         },
     });
 
-    updateLoop(state);
+    updateLoop(0.0);
 }
 
