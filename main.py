@@ -23,8 +23,8 @@ app.config['SEND_FILE_MAX_AGE_DEFAULT'] = 0
 
 thermostat = Thermostat(pref_file         = "prefs/thermostat.json",
                         schedule_file     = "prefs/schedule.json",
-                        runhistory_file   = "prefs/usage_history.csv",
-                        activitydata_file = "prefs/activitydata.csv",
+                        runhistory_file   = "prefs/usage.csv",
+                        activitydata_file = "prefs/activity.csv",
                         tempdata_file     = "prefs/stats.csv")
 
 dayNames = ["Every Day", "Monday", "Tuesday", "Wednesday",
