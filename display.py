@@ -7,7 +7,8 @@ import threading
 import time
 
 class displayControl():
-    def __init__(self, thermostat, up_pin=None, down_pin=None,
+    def __init__(self, thermostat,
+                 downbutton_pin=23, upbutton_pin=24,
                  counter_flash=False):
         self.lock = threading.Condition()
         self.counter_thread = None
@@ -20,14 +21,15 @@ class displayControl():
              [0x00, 0x00, 0x04, 0x00, 0x00, 0x04, 0x00, 0x00],
             ])
 
-        self.up_pin = None
-        self.down_pin = None
-        if up_pin != None:
-            self.up_pin = Button(up_pin)
-            self.up_ping.when_pressed = thermostat.increaseTemp
-        if down_pin != None:
-            self.down_pin = Button(down_pin)
-            self.down_pin.when_pressed = thermostat.decreaseTemp
+        self.downbutton = None
+        if downbutton_pin != None:
+            self.downbutton = Button(downbutton_pin)
+            self.downbutton.when_pressed = thermostat.decreaseTemp
+
+        self.upbutton = None
+        if upbutton_pin != None:
+            self.upbutton = Button(upbutton_pin)
+            self.upbutton.when_pressed = thermostat.increaseTemp
 
         self.counter_flash = counter_flash
         self.counter_offsettime = None
