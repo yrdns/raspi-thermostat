@@ -45,7 +45,7 @@ class dataTracker:
             if self.data[-1][0] == cur_time:
                 logging.warning(
                     "Duplicate time code on entry %s, discarding"
-                             % (entry))
+                             % (entry,))
                 success = False
             else:
                 if cur_time < self.data[-1][0]:
