@@ -1,15 +1,11 @@
 from RPi_I2C_driver.RPi_I2C_driver import lcd
 
-from gpiozero import Button
-
 import logging
 import threading
 import time
 
 class displayControl():
-    def __init__(self, thermostat,
-                 downbutton_pin=23, upbutton_pin=24,
-                 counter_flash=False):
+    def __init__(self, counter_flash=False):
         self.lock = threading.Condition()
         self.counter_thread = None
 
@@ -20,16 +16,6 @@ class displayControl():
               # Alternate colon
              [0x00, 0x00, 0x04, 0x00, 0x00, 0x04, 0x00, 0x00],
             ])
-
-        self.downbutton = None
-        if downbutton_pin != None:
-            self.downbutton = Button(downbutton_pin)
-            self.downbutton.when_pressed = thermostat.decreaseTemp
-
-        self.upbutton = None
-        if upbutton_pin != None:
-            self.upbutton = Button(upbutton_pin)
-            self.upbutton.when_pressed = thermostat.increaseTemp
 
         self.counter_flash = counter_flash
         self.counter_offsettime = None

@@ -1,3 +1,4 @@
+from buttonsKeyboard import buttons
 from display import displayControl
 from heaterControl import heaterControl
 from schedule import schedule
@@ -35,9 +36,10 @@ class Thermostat:
         self.sensor = tempSensor(tempdata_file)
         (temp, humidity) = self.sensor.read()
 
-        self.display = displayControl(self)
+        self.display = displayControl()
         if self.display != None:
             self.display.updateDisplay(temp, self.pid.setpoint, 0.0)
+        self.buttons = buttons(self.increaseTemp, self.decreaseTemp)
 
         self.control = heaterControl(save_file = runhistory_file,
                                      display = self.display)
