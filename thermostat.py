@@ -1,4 +1,4 @@
-from buttonsKeyboard import buttons
+from buttonsController import buttonsController
 from display import displayControl
 from heaterControl import heaterControl
 from schedule import schedule
@@ -39,7 +39,7 @@ class Thermostat:
         self.display = displayControl()
         if self.display != None:
             self.display.updateDisplay(temp, self.pid.setpoint, 0.0)
-        self.buttons = buttons(self.increaseTemp, self.decreaseTemp)
+        self.buttons = buttonsController(self)
 
         self.control = heaterControl(save_file = runhistory_file,
                                      display = self.display)
