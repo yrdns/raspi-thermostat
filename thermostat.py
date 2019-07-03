@@ -17,6 +17,7 @@ class Thermostat:
                  tempdata_file = None, update_frequency = 60.0):
         self.lock = threading.Condition()
         self.thread = None
+        self.state_dirty = False
         self.next_check_time = time.time()
         self.period = update_frequency
 
@@ -139,6 +140,7 @@ class Thermostat:
             scheduled_temp = self.schedule.checkForUpdate()
             if scheduled_temp != None:
                 self.setTargetTemp(scheduled_temp)
+                self.state_dirty = True
 
             (temp, humidity) = self.sensor.read(cur_time)
             status = 0
@@ -154,8 +156,9 @@ class Thermostat:
             if self.display != None:
                 self.display.updateDisplay(temp, self.pid.setpoint, status)
 
-            if scheduled_temp:
+            if self.state_dirty:
                 self.savePrefs()
+                self.state_dirty = False
 
             cur_time = time.time()
             if cur_time < self.next_check_time:
@@ -166,11 +169,11 @@ class Thermostat:
 
     def updateState(self, block=False):
         self.lock.acquire()
+        self.state_dirty = True
         self.lock.notify()
         if block:
             self.lock.wait()
         self.lock.release()
-        self.savePrefs()
 
     def savePrefs(self, filename=None):
         if filename == None:
