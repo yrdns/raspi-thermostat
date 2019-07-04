@@ -4,6 +4,8 @@ function apiCommand(command, args = {}) {
 
 function setTemp() {
     apiCommand("setTemp", {"v" : $("#tempInput").val()});
+    $("#tempInput").blur();
+    updateTarget($("#tempInput").val());
 }
 
 function increaseTemp() {
@@ -18,6 +20,9 @@ function setPIDs() {
     apiCommand("setPIDs", {"Kp" : $("#KpInput").val(),
                            "Ki" : $("#KiInput").val(),
                            "Kd" : $("#KdInput").val()});
+    $("Kp").blur();
+    $("Ki").blur();
+    $("Kd").blur();
 }
 
 function setState(state) {

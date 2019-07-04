@@ -5,6 +5,7 @@ import threading
 class buttonsController():
     def __init__(self, thermostat):
         self.lock = threading.Condition()
+        self.thread = None
         self.delta = 0
         self.thermostat = thermostat
         self.buttons = buttons(self.increase, self.decrease)
