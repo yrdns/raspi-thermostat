@@ -46,7 +46,6 @@ class dataTracker:
                 logging.warning(
                     "Duplicate time code on entry %s, discarding"
                              % (entry,))
-                success = False
             else:
                 if cur_time < self.data[-1][0]:
                     logging.warning(
@@ -68,10 +67,10 @@ class dataTracker:
                                 % (entry, i, self.data[-1], d_dt))
                             success = False
 
-        if success:
-            self.data.append(entry)
-            if split:
-                self.data.extend(reversed(split))
+                if success:
+                    self.data.append(entry)
+                    if split:
+                        self.data.extend(reversed(split))
 
         self.prune(cur_time)
 

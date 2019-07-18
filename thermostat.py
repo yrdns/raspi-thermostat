@@ -1,4 +1,4 @@
-from buttonsController import buttonsController
+from buttonHandler import buttonHandler
 from display import displayControl
 from heaterControl import heaterControl
 from schedule import schedule
@@ -15,9 +15,11 @@ import time
 class Thermostat:
     def __init__(self, pref_file = None, schedule_file = None,
                  runhistory_file = None, activitydata_file = None,
-                 tempdata_file = None, update_frequency = 60.0):
-        self.lock = threading.Condition()
+                 tempdata_file = None, update_frequency = 60.0,
+                 downbuttons = ["F11"], upbuttons = ["F12"]):
+        self.updatelock = threading.Condition()
         self.thread = None
+        self.update = False
         self.state_dirty = False
         self.next_check_time = time.time()
         self.period = update_frequency
@@ -39,7 +41,10 @@ class Thermostat:
         self.display = displayControl()
         if self.display != None:
             self.display.updateDisplay(temp, self.pid.setpoint, 0.0)
-        self.buttons = buttonsController(self)
+        self.downbuttons = [buttonHandler(b, self.decreaseTemp)
+                            for b in downbuttons] if downbuttons else []
+        self.upbuttons = [buttonHandler(b, self.increaseTemp)
+                          for b in upbuttons] if upbuttons else []
 
         self.control = heaterControl(save_file = runhistory_file,
                                      display = self.display)
@@ -50,15 +55,15 @@ class Thermostat:
         self.thread.start()
 
     def __del__(self):
-        self.lock.acquire()
+        self.updatelock.acquire()
         self.to_delete = True
 
         # Abuses evaluation order to join right before the is_alive check
         while (self.thread and not self.thread.join(0) and
                self.thread.is_alive()):
-            self.lock.notify()
-            self.lock.wait()
-        self.lock.release()
+            self.updatelock.notify()
+            self.updatelock.wait()
+        self.updatelock.release()
 
     def getTargetTemp(self):
         return self.pid.setpoint
@@ -69,13 +74,16 @@ class Thermostat:
         logging.info("Updating new target temp from %f to %f"
                       % (self.pid.setpoint, val))
         self.pid.setpoint = val
+        self.state_dirty = True
 
     def increaseTemp(self, amount=1.0):
         self.pid.setpoint += amount
+        self.state_dirty = True
         self.updateState()
 
     def decreaseTemp(self, amount=1.0):
         self.pid.setpoint -= amount
+        self.state_dirty = True
         self.updateState()
 
     def getStatus(self):
@@ -121,30 +129,37 @@ class Thermostat:
         return self.sensor.mostRecent()
 
     def getWaitTime(self, cur_time = None, default = 5.0):
-        self.lock.acquire()
+        self.updatelock.acquire()
         if cur_time == None:
             cur_time = time.time()
         next_check_time = self.next_check_time
-        self.lock.release()
+        self.updatelock.release()
 
         if cur_time >= next_check_time:
             return default
         return next_check_time - cur_time
 
     def thermostatThread(self):
-        self.lock.acquire()
+        temp = None
+        humidity = None
+        self.updatelock.acquire()
         while not self.to_delete:
             logging.info("Checking thermostat...")
             cur_time = time.time()
+            woken = True
             while cur_time > self.next_check_time:
+                woken = False
                 self.next_check_time += self.period
+            self.update = False
+            self.updatelock.release()
 
             scheduled_temp = self.schedule.checkForUpdate()
             if scheduled_temp != None:
                 self.setTargetTemp(scheduled_temp)
-                self.state_dirty = True
 
-            (temp, humidity) = self.sensor.read(cur_time)
+            if not woken:
+                (temp, humidity) = self.sensor.read(cur_time)
+
             status = 0
             if (self.enabled == 2):
                 status = 1
@@ -158,24 +173,26 @@ class Thermostat:
             if self.display != None:
                 self.display.updateDisplay(temp, self.pid.setpoint, status)
 
-            if self.state_dirty:
+            if self.state_dirty and not self.update:
                 self.savePrefs()
-                self.state_dirty = False
 
-            cur_time = time.time()
-            if cur_time < self.next_check_time:
-                self.lock.notify()
-                self.lock.wait(self.next_check_time - cur_time)
-        self.lock.notify()
-        self.lock.release()
+            self.updatelock.acquire()
+            if not self.update:
+                cur_time = time.time()
+                if cur_time < self.next_check_time:
+                    self.updatelock.notify()
+                    self.updatelock.wait(self.next_check_time - cur_time)
+
+        self.updatelock.notify()
+        self.updatelock.release()
 
     def updateState(self, block=False):
-        self.lock.acquire()
-        self.state_dirty = True
-        self.lock.notify()
+        self.updatelock.acquire()
+        self.update = True
+        self.updatelock.notify()
         if block:
-            self.lock.wait()
-        self.lock.release()
+            self.updatelock.wait()
+        self.updatelock.release()
 
     def savePrefs(self, filename=None):
         if filename == None:
@@ -193,6 +210,7 @@ class Thermostat:
                 logging.error("Could not create directory %s: %s"
                                % (directory, err))
 
+        self.state_dirty = False
         prefs_dict = {"temp" : self.pid.setpoint,
                       "state" : self.enabled,
                       "pid" : self.pid.tunings}

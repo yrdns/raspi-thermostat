@@ -2,7 +2,7 @@ from gpiozero import Button
 
 import logging
 
-class buttonHandler():
+class buttonGPIO():
     def __init__(self, pin, callback):
         self.button = None
         self.button = Button(pin)

@@ -2,7 +2,7 @@ from keyboard import on_press_key, on_release_key
 
 import logging
 
-class buttonHandler():
+class buttonKeyboard():
     def __init__(self, key, callback):
         self.presshandler = None
         self.releasehandler = None
