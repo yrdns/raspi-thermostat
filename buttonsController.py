@@ -1,4 +1,4 @@
-from buttonsKeyboard import buttons
+from buttonKeyboard import buttonHandler
 
 import threading
 
@@ -8,7 +8,8 @@ class buttonsController():
         self.thread = None
         self.delta = 0
         self.thermostat = thermostat
-        self.buttons = buttons(self.increase, self.decrease)
+        self.downbutton = buttonHandler("F11", self.decrease)
+        self.upbutton = buttonHandler("F12", self.increase)
 
         self.to_delete = False
         self.thread = threading.Thread(target=self.callbackThread)
