@@ -35,6 +35,7 @@ class dataTracker:
             raise ValueError("Tracker expected %d values, got %d"
                               % (self.nvals, len(vals)))
         cur_time = int(cur_time + .5)
+        add_entry = True
         success = True
 
         split = None
@@ -46,6 +47,7 @@ class dataTracker:
                 logging.warning(
                     "Duplicate time code on entry %s, discarding"
                              % (entry,))
+                add_entry = False
             else:
                 if cur_time < self.data[-1][0]:
                     logging.warning(
@@ -66,11 +68,12 @@ class dataTracker:
 "Change on entry %s[%d] from record %s is greater than threshold (d/dt = %f)"
                                 % (entry, i, self.data[-1], d_dt))
                             success = False
+                            add_entry = False
 
-                if success:
-                    self.data.append(entry)
-                    if split:
-                        self.data.extend(reversed(split))
+        if add_entry:
+            self.data.append(entry)
+            if split:
+                self.data.extend(reversed(split))
 
         self.prune(cur_time)
 
