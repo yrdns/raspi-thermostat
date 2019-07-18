@@ -23,6 +23,6 @@ class buttonHandler():
             self.pressed = True
             self.callback()
 
-    def relesae(self, event):
+    def release(self, event):
         self.pressed = False
 
