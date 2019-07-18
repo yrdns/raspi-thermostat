@@ -7,7 +7,7 @@ def toFahrenheit(val):
     return 1.8*val + 32
 
 class tempSensor:
-    def __init__(self, save_file = None, pin = 25):
+    def __init__(self, save_file = None, pin = 24):
         self.pin = pin
 
         self.tracker = dataTracker(2, save_file = save_file,
