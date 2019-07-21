@@ -49,7 +49,7 @@ def simpleStats():
     }
     return data
 
-def updateStats(start_time):
+def updateStats(last_time, stats_time, stats_window = 600):
     data = simpleStats()
 
     runtimes = thermostat.getPastRuntimes(7)
@@ -57,19 +57,29 @@ def updateStats(start_time):
     data["runtimeLabels"] = [format_date(e[0]) for e in runtimes]
     data["runtimes"]      = [e[1] for e in runtimes]
 
-    cur_time = time.time()
-    stats = thermostat.getSensorHistory(start_time = start_time,
-                                        end_time = cur_time)
+    cur_time = int(time.time())
+    new_stats_time = stats_time
+    stats = []
+    if cur_time >= stats_time:
+        new_stats_time += stats_window * ((cur_time - stats_time) //
+                                          stats_window)
+        stats = thermostat.getSensorHistory(start_time = (stats_time -
+                                                          stats_window),
+                                            end_time = new_stats_time,
+                                            stride = stats_window)
+        new_stats_time += stats_window
+
     data["times"]  = [format_datetime_short(e[0]) for e in reversed(stats)]
     data["temps"]  = [e[1] for e in reversed(stats)]
     data["humis"]  = [100*e[2] for e in reversed(stats)]
 
-    stats = thermostat.getActivityHistory(start_time = start_time,
+    stats = thermostat.getActivityHistory(start_time = last_time,
                                           end_time = cur_time)
     data["ontimes"] = [format_datetime_short(e[0]) for e in reversed(stats)]
     data["onvals"]  = [100*e[1] for e in reversed(stats)]
 
     data["lastTime"] = cur_time
+    data["nextStatsTime"] = new_stats_time
     data["waitTime"] = thermostat.getWaitTime() + 2.0
 
     return data
@@ -99,11 +109,15 @@ def templateStats():
 @app.route("/update.json")
 def flaskUpdate():
     try:
-        last_time = float(request.args.get("t"))
+        last_time = float(request.args.get("t", 0.0))
     except (ValueError, TypeError):
-        last_time = None
+        last_time = 0.0
+    try:
+        stats_time = float(request.args.get("ts", last_time))
+    except (ValueError, TypeError):
+        stats_time = last_time
 
-    return jsonify(updateStats(last_time))
+    return jsonify(updateStats(last_time, stats_time))
 
 def apiError():
     return jsonify({"success": False})

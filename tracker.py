@@ -96,32 +96,29 @@ class dataTracker:
             stride = time_range / bin_count
 
         cur_bin = end_time
-        cur_acc = [0,0,0]
+        cur_acc = [0]*self.nvals
         cur_count = 0
         result = []
         # This SHOULD be in place, which is important as we intend to only
         # partially exhaust iterator:
         for e in reversed(self.data):
+            if stride != None and (cur_bin - e[0] >= stride or
+                                   e[0] < start_time):
+                if cur_count > 0:
+                    result.append((cur_bin, *(x / cur_count
+                                              for x in cur_acc)))
+                cur_acc = [0]*self.nvals
+                cur_count = 0
+                cur_bin -= stride*((cur_bin-e[0]) // stride)
+
             if e[0] < start_time:
                 break
             if e[0] <= end_time:
                 if stride == None:
                     result.append(e)
                 else:
-                    while cur_bin - e[0] >= stride:
-                        if cur_count > 0:
-                            cur_acc[0] /= cur_count
-                            cur_acc[1] /= cur_count
-                            cur_acc[2] /= cur_count
-                        result.append((cur_bin, cur_acc[0],
-                                       cur_acc[1], cur_acc[2]))
-                        cur_acc = [0,0,0]
-                        cur_count = 0
-                        cur_bin -= stride
-
-                    cur_acc[0] += e[1]
-                    cur_acc[1] += e[2]
-                    cur_acc[2] += e[3]
+                    for i in range(self.nvals):
+                        cur_acc[i] += e[i+1]
                     cur_count += 1
 
         self.lock.release()

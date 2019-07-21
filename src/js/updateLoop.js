@@ -1,13 +1,14 @@
-function updateLoop(lastTime) {
-    $.getJSON("update.json", {t : lastTime}, function(data) {
+function updateLoop(lastTime, statsTime) {
+    $.getJSON("update.json", {t : lastTime, ts:statsTime}, function(data) {
         updateInfoBox(data);
         updateCharts(data);
 
-        setTimeout(function() { updateLoop(data.lastTime); },
-                   data.waitTime * 1000);
+        setTimeout(function() {
+                       updateLoop(data.lastTime, data.nextStatsTime);
+                   }, data.waitTime * 1000);
     }).fail(function() {
         console.log("Error: Couldn't update state");
-        setTimeout(function() { updateLoop(lastTime); },
+        setTimeout(function() { updateLoop(lastTime, statsTime); },
                    60000);
     });
 }

@@ -196,6 +196,6 @@ function initCharts() {
         },
     });
 
-    updateLoop(0.0);
+    updateLoop(0.0, 0.0);
 }
 
